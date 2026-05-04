@@ -1,0 +1,17 @@
+services:
+  docs:
+    image: memos_cafe_local_docs
+    container_name: memos_cafe_local_docs
+    build:
+      context: .
+      dockerfile: ./compose/local/docs/Dockerfile
+    env_file:
+      - ./.envs/.local/.django
+    volumes:
+      - /app/.venv
+      - ./docs:/docs:z
+      - ./config:/app/config:z
+      - ./memos_cafe:/app/memos_cafe:z
+    ports:
+      - '9000:9000'
+    command: /start-docs
