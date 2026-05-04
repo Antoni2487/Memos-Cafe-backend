@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # MemosCafe
 
 Proyecto Integrador 1
@@ -50,3 +51,7 @@ The following details how to deploy this application.
 ### Docker
 
 See detailed [cookiecutter-django Docker documentation](https://cookiecutter-django.readthedocs.io/en/latest/3-deployment/deployment-with-docker.html).
+=======
+# Memos-Cafe-backend
+Proyecto Integrador 1
+>>>>>>> 3276596a9172ce83e53d5cbd0a5be4a0ecb4f836
