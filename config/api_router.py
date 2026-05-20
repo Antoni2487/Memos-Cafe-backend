@@ -14,6 +14,9 @@ from memos_cafe.ordenes.api.views import OrdenViewSet
 from memos_cafe.productos.api.views import CategoriaViewSet
 from memos_cafe.productos.api.views import ProductoViewSet
 from memos_cafe.productos.api.views import PromocionViewSet
+from memos_cafe.reportes.views import ReporteCajaView
+from memos_cafe.reportes.views import ReporteProductosView
+from memos_cafe.reportes.views import ReporteVentasView
 
 router = DefaultRouter()
 
@@ -42,4 +45,8 @@ router.register("insumos/registros", RegistroInsumoViewSet, basename="registro-i
 urlpatterns = router.urls + [
     path("auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    # Reportes
+    path("reportes/ventas/", ReporteVentasView.as_view(), name="reporte-ventas"),
+    path("reportes/productos/", ReporteProductosView.as_view(), name="reporte-productos"),
+    path("reportes/caja/", ReporteCajaView.as_view(), name="reporte-caja"),
 ]
