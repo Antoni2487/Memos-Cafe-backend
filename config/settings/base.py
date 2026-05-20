@@ -1,6 +1,7 @@
 # ruff: noqa: ERA001, E501
 """Base settings to build other settings files upon."""
 
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -78,14 +79,19 @@ THIRD_PARTY_APPS = [
     "allauth.mfa",
     "allauth.socialaccount",
     "rest_framework",
-    "rest_framework.authtoken",
+    # "rest_framework.authtoken",  # ← eliminado: usamos JWT, no token simple
     "corsheaders",
     "drf_spectacular",
 ]
 
+# ⚠️  CORRECCIÓN: pagos eliminado (absorbido por caja), mesas e insumos añadidos
 LOCAL_APPS = [
     "memos_cafe.users",
-    # Your stuff: custom apps go here
+    "memos_cafe.productos",
+    "memos_cafe.mesas",
+    "memos_cafe.ordenes",
+    "memos_cafe.caja",
+    "memos_cafe.insumos",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -287,19 +293,40 @@ SOCIALACCOUNT_FORMS = {"signup": "memos_cafe.users.forms.UserSocialSignupForm"}
 
 # django-rest-framework
 # -------------------------------------------------------------------------------
-# django-rest-framework - https://www.django-rest-framework.org/api-guide/settings/
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.TokenAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
-# django-cors-headers - https://github.com/adamchainz/django-cors-headers#setup
-CORS_URLS_REGEX = r"^/api/.*$"
+# djangorestframework-simplejwt
+# -------------------------------------------------------------------------------
+# https://django-rest-framework-simplejwt.readthedocs.io/en/latest/settings.html
+# ACCESS_TOKEN_LIFETIME: 8h cubre un turno completo de trabajo
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+}
 
+# django-cors-headers
+# -------------------------------------------------------------------------------
+# https://github.com/adamchainz/django-cors-headers#setup
+CORS_URLS_REGEX = r"^/api/.*$"
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# drf-spectacular
+# -------------------------------------------------------------------------------
 # By Default swagger ui is available only to admin user(s). You can change permission classes to change that
 # See more configuration options at https://drf-spectacular.readthedocs.io/en/latest/settings.html#settings
 SPECTACULAR_SETTINGS = {
@@ -309,5 +336,6 @@ SPECTACULAR_SETTINGS = {
     "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAdminUser"],
     "SCHEMA_PATH_PREFIX": "/api/",
 }
+
 # Your stuff...
 # ------------------------------------------------------------------------------
