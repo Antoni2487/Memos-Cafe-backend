@@ -15,8 +15,8 @@ classifiers = [
 dependencies = [
   "argon2-cffi==25.1.0",
   "crispy-bootstrap5==2026.3",
-  "django==6.0.4",
-  "django-allauth[mfa]==65.16.1",
+  "django==6.0.5",
+  "django-allauth[mfa]==65.17.0",
   "django-anymail==15.0",
   "django-cors-headers==4.9.0",
   "django-crispy-forms==2.6",
@@ -36,12 +36,12 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-  "coverage==7.13.5",
+  "coverage==7.14.0",
   "django-coverage-plugin==3.2.2",
   "django-debug-toolbar==6.3.0",
   "django-extensions==4.1",
-  "django-stubs[compatible-mypy]==6.0.3",
-  "djangorestframework-stubs==3.16.9",
+  "django-stubs[compatible-mypy]==6.0.4",
+  "djangorestframework-stubs==3.17.0",
   "djlint==1.36.4",
   "factory-boy==3.3.3",
   "ipdb==0.13.13",
@@ -51,7 +51,7 @@ dev = [
   "pytest==9.0.3",
   "pytest-django==4.12.0",
   "pytest-sugar==1.1.1",
-  "ruff==0.15.12",
+  "ruff==0.15.13",
   "sphinx==9.1.0",
   "sphinx-autobuild==2025.8.25",
   "werkzeug[watchdog]==3.1.8",
