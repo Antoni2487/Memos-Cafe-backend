@@ -3,12 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from memos_cafe.mesas.models import Mesa
-from memos_cafe.mesas.api.serializers import MesaEstadoSerializer
-from memos_cafe.mesas.api.serializers import MesaSerializer
-from memos_cafe.utils.permissions import EsAdmin
-from memos_cafe.utils.permissions import EsAdminOMesero
-from memos_cafe.utils.permissions import TodosAutenticados
+from memos_cafe_backend.mesas.models import Mesa
+from memos_cafe_backend.mesas.api.serializers import MesaEstadoSerializer
+from memos_cafe_backend.mesas.api.serializers import MesaSerializer
+from memos_cafe_backend.utils.permissions import EsAdmin
+from memos_cafe_backend.utils.permissions import EsAdminOMesero
+from memos_cafe_backend.utils.permissions import TodosAutenticados
 
 
 class MesaViewSet(ModelViewSet):

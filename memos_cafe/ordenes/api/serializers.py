@@ -1,9 +1,9 @@
 from rest_framework import serializers
 
-from memos_cafe.ordenes.models import DetalleOrden
-from memos_cafe.ordenes.models import Orden
-from memos_cafe.productos.api.serializers import ProductoSerializer
-from memos_cafe.productos.api.serializers import PromocionSerializer
+from memos_cafe_backend.ordenes.models import DetalleOrden
+from memos_cafe_backend.ordenes.models import Orden
+from memos_cafe_backend.productos.api.serializers import ProductoSerializer
+from memos_cafe_backend.productos.api.serializers import PromocionSerializer
 
 
 class DetalleOrdenReadSerializer(serializers.ModelSerializer):

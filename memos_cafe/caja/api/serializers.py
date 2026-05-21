@@ -1,10 +1,10 @@
 from rest_framework import serializers
 
-from memos_cafe.caja.models import Caja
-from memos_cafe.caja.models import Comprobante
-from memos_cafe.caja.models import MovimientoCaja
-from memos_cafe.caja.models import Pago
-from memos_cafe.ordenes.api.serializers import OrdenReadSerializer
+from memos_cafe_backend.caja.models import Caja
+from memos_cafe_backend.caja.models import Comprobante
+from memos_cafe_backend.caja.models import MovimientoCaja
+from memos_cafe_backend.caja.models import Pago
+from memos_cafe_backend.ordenes.api.serializers import OrdenReadSerializer
 
 
 class AbrirCajaSerializer(serializers.ModelSerializer):

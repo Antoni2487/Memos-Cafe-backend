@@ -1,9 +1,9 @@
 from django.conf import settings
 from django.db import models
 
-from memos_cafe.mesas.models import Mesa
-from memos_cafe.productos.models import Producto
-from memos_cafe.productos.models import Promocion
+from memos_cafe_backend.mesas.models import Mesa
+from memos_cafe_backend.productos.models import Producto
+from memos_cafe_backend.productos.models import Promocion
 
 
 class Orden(models.Model):

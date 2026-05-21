@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from memos_cafe.ordenes.models import Orden
+from memos_cafe_backend.ordenes.models import Orden
 
 
 class Caja(models.Model):

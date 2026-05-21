@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from memos_cafe.users.models import User
+from memos_cafe_backend.users.models import User
 
 
 class UserSerializer(serializers.ModelSerializer[User]):

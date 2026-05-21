@@ -5,19 +5,19 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.viewsets import ModelViewSet
 from rest_framework import mixins
 
-from memos_cafe.caja.models import Caja
-from memos_cafe.caja.models import Comprobante
-from memos_cafe.caja.models import MovimientoCaja
-from memos_cafe.caja.models import Pago
-from memos_cafe.caja.api.serializers import AbrirCajaSerializer
-from memos_cafe.caja.api.serializers import CajaReadSerializer
-from memos_cafe.caja.api.serializers import CerrarCajaSerializer
-from memos_cafe.caja.api.serializers import ComprobanteSerializer
-from memos_cafe.caja.api.serializers import MovimientoCajaSerializer
-from memos_cafe.caja.api.serializers import PagoReadSerializer
-from memos_cafe.caja.api.serializers import PagoWriteSerializer
-from memos_cafe.utils.permissions import EsAdmin
-from memos_cafe.utils.permissions import EsAdminOCajero
+from memos_cafe_backend.caja.models import Caja
+from memos_cafe_backend.caja.models import Comprobante
+from memos_cafe_backend.caja.models import MovimientoCaja
+from memos_cafe_backend.caja.models import Pago
+from memos_cafe_backend.caja.api.serializers import AbrirCajaSerializer
+from memos_cafe_backend.caja.api.serializers import CajaReadSerializer
+from memos_cafe_backend.caja.api.serializers import CerrarCajaSerializer
+from memos_cafe_backend.caja.api.serializers import ComprobanteSerializer
+from memos_cafe_backend.caja.api.serializers import MovimientoCajaSerializer
+from memos_cafe_backend.caja.api.serializers import PagoReadSerializer
+from memos_cafe_backend.caja.api.serializers import PagoWriteSerializer
+from memos_cafe_backend.utils.permissions import EsAdmin
+from memos_cafe_backend.utils.permissions import EsAdminOCajero
 
 
 class CajaViewSet(GenericViewSet):

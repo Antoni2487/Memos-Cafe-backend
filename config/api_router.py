@@ -3,20 +3,20 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from memos_cafe.caja.api.views import CajaViewSet
-from memos_cafe.caja.api.views import ComprobanteViewSet
-from memos_cafe.caja.api.views import MovimientoCajaViewSet
-from memos_cafe.caja.api.views import PagoViewSet
-from memos_cafe.insumos.api.views import RegistroInsumoViewSet
-from memos_cafe.insumos.api.views import TipoInsumoViewSet
-from memos_cafe.mesas.api.views import MesaViewSet
-from memos_cafe.ordenes.api.views import OrdenViewSet
-from memos_cafe.productos.api.views import CategoriaViewSet
-from memos_cafe.productos.api.views import ProductoViewSet
-from memos_cafe.productos.api.views import PromocionViewSet
-from memos_cafe.reportes.views import ReporteCajaView
-from memos_cafe.reportes.views import ReporteProductosView
-from memos_cafe.reportes.views import ReporteVentasView
+from memos_cafe_backend.caja.api.views import CajaViewSet
+from memos_cafe_backend.caja.api.views import ComprobanteViewSet
+from memos_cafe_backend.caja.api.views import MovimientoCajaViewSet
+from memos_cafe_backend.caja.api.views import PagoViewSet
+from memos_cafe_backend.insumos.api.views import RegistroInsumoViewSet
+from memos_cafe_backend.insumos.api.views import TipoInsumoViewSet
+from memos_cafe_backend.mesas.api.views import MesaViewSet
+from memos_cafe_backend.ordenes.api.views import OrdenViewSet
+from memos_cafe_backend.productos.api.views import CategoriaViewSet
+from memos_cafe_backend.productos.api.views import ProductoViewSet
+from memos_cafe_backend.productos.api.views import PromocionViewSet
+from memos_cafe_backend.reportes.views import ReporteCajaView
+from memos_cafe_backend.reportes.views import ReporteProductosView
+from memos_cafe_backend.reportes.views import ReporteVentasView
 
 router = DefaultRouter()
 

@@ -3,14 +3,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from memos_cafe.ordenes.models import DetalleOrden
-from memos_cafe.ordenes.models import Orden
-from memos_cafe.ordenes.api.serializers import DetalleOrdenWriteSerializer
-from memos_cafe.ordenes.api.serializers import OrdenReadSerializer
-from memos_cafe.ordenes.api.serializers import OrdenWriteSerializer
-from memos_cafe.utils.permissions import EsAdmin
-from memos_cafe.utils.permissions import EsAdminOMesero
-from memos_cafe.utils.permissions import TodosAutenticados
+from memos_cafe_backend.ordenes.models import DetalleOrden
+from memos_cafe_backend.ordenes.models import Orden
+from memos_cafe_backend.ordenes.api.serializers import DetalleOrdenWriteSerializer
+from memos_cafe_backend.ordenes.api.serializers import OrdenReadSerializer
+from memos_cafe_backend.ordenes.api.serializers import OrdenWriteSerializer
+from memos_cafe_backend.utils.permissions import EsAdmin
+from memos_cafe_backend.utils.permissions import EsAdminOMesero
+from memos_cafe_backend.utils.permissions import TodosAutenticados
 
 
 class OrdenViewSet(ModelViewSet):

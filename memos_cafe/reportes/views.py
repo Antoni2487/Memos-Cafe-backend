@@ -9,10 +9,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from memos_cafe.caja.models import Caja
-from memos_cafe.caja.models import Pago
-from memos_cafe.ordenes.models import DetalleOrden
-from memos_cafe.utils.permissions import EsAdmin
+from memos_cafe_backend.caja.models import Caja
+from memos_cafe_backend.caja.models import Pago
+from memos_cafe_backend.ordenes.models import DetalleOrden
+from memos_cafe_backend.utils.permissions import EsAdmin
 
 
 class ReporteVentasView(APIView):

@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from memos_cafe.users.tests.factories import UserFactory
+from memos_cafe_backend.users.tests.factories import UserFactory
 
 if TYPE_CHECKING:
-    from memos_cafe.users.models import User
+    from memos_cafe_backend.users.models import User
 
 
 @pytest.fixture(autouse=True)

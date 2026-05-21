@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from memos_cafe.mesas.models import Mesa
+from memos_cafe_backend.mesas.models import Mesa
 
 
 class MesaSerializer(serializers.ModelSerializer):

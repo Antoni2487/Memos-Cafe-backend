@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from memos_cafe.insumos.models import RegistroInsumo
-from memos_cafe.insumos.models import TipoInsumo
+from memos_cafe_backend.insumos.models import RegistroInsumo
+from memos_cafe_backend.insumos.models import TipoInsumo
 
 
 class TipoInsumoSerializer(serializers.ModelSerializer):

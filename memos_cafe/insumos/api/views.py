@@ -3,11 +3,11 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework import mixins
 from rest_framework.viewsets import GenericViewSet
 
-from memos_cafe.insumos.models import RegistroInsumo
-from memos_cafe.insumos.models import TipoInsumo
-from memos_cafe.insumos.api.serializers import RegistroInsumoSerializer
-from memos_cafe.insumos.api.serializers import TipoInsumoSerializer
-from memos_cafe.utils.permissions import EsAdmin
+from memos_cafe_backend.insumos.models import RegistroInsumo
+from memos_cafe_backend.insumos.models import TipoInsumo
+from memos_cafe_backend.insumos.api.serializers import RegistroInsumoSerializer
+from memos_cafe_backend.insumos.api.serializers import TipoInsumoSerializer
+from memos_cafe_backend.utils.permissions import EsAdmin
 
 
 class TipoInsumoViewSet(ModelViewSet):

@@ -1,14 +1,14 @@
 from rest_framework.viewsets import ModelViewSet
 
-from memos_cafe.productos.models import Categoria
-from memos_cafe.productos.models import Producto
-from memos_cafe.productos.models import Promocion
-from memos_cafe.productos.api.serializers import CategoriaSerializer
-from memos_cafe.productos.api.serializers import ProductoSerializer
-from memos_cafe.productos.api.serializers import ProductoWriteSerializer
-from memos_cafe.productos.api.serializers import PromocionSerializer
-from memos_cafe.utils.permissions import EsAdmin
-from memos_cafe.utils.permissions import TodosAutenticados
+from memos_cafe_backend.productos.models import Categoria
+from memos_cafe_backend.productos.models import Producto
+from memos_cafe_backend.productos.models import Promocion
+from memos_cafe_backend.productos.api.serializers import CategoriaSerializer
+from memos_cafe_backend.productos.api.serializers import ProductoSerializer
+from memos_cafe_backend.productos.api.serializers import ProductoWriteSerializer
+from memos_cafe_backend.productos.api.serializers import PromocionSerializer
+from memos_cafe_backend.utils.permissions import EsAdmin
+from memos_cafe_backend.utils.permissions import TodosAutenticados
 
 
 class CategoriaViewSet(ModelViewSet):

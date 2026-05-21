@@ -1,8 +1,8 @@
 from rest_framework import serializers
 
-from memos_cafe.productos.models import Categoria
-from memos_cafe.productos.models import Producto
-from memos_cafe.productos.models import Promocion
+from memos_cafe_backend.productos.models import Categoria
+from memos_cafe_backend.productos.models import Producto
+from memos_cafe_backend.productos.models import Promocion
 
 
 class CategoriaSerializer(serializers.ModelSerializer):

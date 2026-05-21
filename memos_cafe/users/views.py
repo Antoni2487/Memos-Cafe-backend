@@ -10,7 +10,7 @@ from django.views.generic import DetailView
 from django.views.generic import RedirectView
 from django.views.generic import UpdateView
 
-from memos_cafe.users.models import User
+from memos_cafe_backend.users.models import User
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
