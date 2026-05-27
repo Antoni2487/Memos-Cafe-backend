@@ -14,16 +14,16 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from memos_cafe_backend.users.forms import UserAdminChangeForm
-from memos_cafe_backend.users.tests.factories import UserFactory
-from memos_cafe_backend.users.views import UserRedirectView
-from memos_cafe_backend.users.views import UserUpdateView
-from memos_cafe_backend.users.views import user_detail_view
+from memos_cafe.users.forms import UserAdminChangeForm
+from memos_cafe.users.tests.factories import UserFactory
+from memos_cafe.users.views import UserRedirectView
+from memos_cafe.users.views import UserUpdateView
+from memos_cafe.users.views import user_detail_view
 
 if TYPE_CHECKING:
     from django.test import RequestFactory
 
-    from memos_cafe_backend.users.models import User
+    from memos_cafe.users.models import User
 
 pytestmark = pytest.mark.django_db
 

@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 import pytest
 from rest_framework.test import APIRequestFactory
 
-from memos_cafe_backend.users.api.views import UserViewSet
+from memos_cafe.users.api.views import UserViewSet
 
 if TYPE_CHECKING:
-    from memos_cafe_backend.users.models import User
+    from memos_cafe.users.models import User
 
 
 class TestUserViewSet:

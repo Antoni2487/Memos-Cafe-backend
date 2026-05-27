@@ -4,7 +4,7 @@ import django.utils.timezone
 from django.db import migrations
 from django.db import models
 
-import memos_cafe_backend.users.models
+import memos_cafe.users.models
 
 
 class Migration(migrations.Migration):
@@ -106,7 +106,7 @@ class Migration(migrations.Migration):
                 "abstract": False,
             },
             managers=[
-                ("objects", memos_cafe_backend.users.models.UserManager()),
+                ("objects", memos_cafe.users.models.UserManager()),
             ],
         ),
     ]

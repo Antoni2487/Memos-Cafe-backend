@@ -6,7 +6,7 @@ from django.urls import resolve
 from django.urls import reverse
 
 if TYPE_CHECKING:
-    from memos_cafe_backend.users.models import User
+    from memos_cafe.users.models import User
 
 
 def test_detail(user: User):
