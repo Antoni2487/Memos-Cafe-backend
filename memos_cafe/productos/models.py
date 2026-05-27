@@ -1,4 +1,7 @@
 from django.db import models
+from django.utils import timezone
+
+from memos_cafe.productos.managers import ProductoManager, PromocionManager
 
 
 class Categoria(models.Model):
@@ -27,6 +30,8 @@ class Producto(models.Model):
     disponible = models.BooleanField(default=True)
     imagen_url = models.CharField(max_length=255, blank=True)
 
+    objects = ProductoManager()
+
     class Meta:
         db_table = "producto"
         verbose_name = "Producto"
@@ -36,15 +41,11 @@ class Producto(models.Model):
     def __str__(self):
         return self.nombre
 
-    # --- Lógica de negocio ---
-
     def activar(self):
-        """El admin pone el producto disponible en carta."""
         self.disponible = True
         self.save(update_fields=["disponible"])
 
     def desactivar(self):
-        """El admin retira el producto de la carta temporalmente."""
         self.disponible = False
         self.save(update_fields=["disponible"])
 
@@ -58,6 +59,8 @@ class Promocion(models.Model):
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
 
+    objects = PromocionManager()
+
     class Meta:
         db_table = "promocion"
         verbose_name = "Promoción"
@@ -67,10 +70,6 @@ class Promocion(models.Model):
     def __str__(self):
         return self.nombre
 
-    # --- Lógica de negocio ---
-
     def esta_vigente(self):
-        """Verifica si la promoción está activa y dentro del rango de fechas."""
-        from django.utils import timezone
         hoy = timezone.localdate()
         return self.activo and self.fecha_inicio <= hoy <= self.fecha_fin

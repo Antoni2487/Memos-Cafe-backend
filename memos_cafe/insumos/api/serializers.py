@@ -1,11 +1,13 @@
 from rest_framework import serializers
 
-from memos_cafe_backend.insumos.models import RegistroInsumo
-from memos_cafe_backend.insumos.models import TipoInsumo
+from memos_cafe.insumos.models import RegistroInsumo, TipoInsumo
 
 
 class TipoInsumoSerializer(serializers.ModelSerializer):
     stock_bajo = serializers.BooleanField(read_only=True)
+    unidad_display = serializers.CharField(
+        source="get_unidad_display", read_only=True
+    )
 
     class Meta:
         model = TipoInsumo
@@ -13,12 +15,21 @@ class TipoInsumoSerializer(serializers.ModelSerializer):
             "id",
             "nombre",
             "unidad",
+            "unidad_display",
             "stock_minimo",
             "stock_actual",
             "stock_bajo",
             "activo",
         ]
         read_only_fields = ["stock_actual"]
+
+
+class TipoInsumoWriteSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=100)
+    unidad = serializers.ChoiceField(choices=TipoInsumo.Unidad.choices)
+    stock_minimo = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, default=0
+    )
 
     def validate_stock_minimo(self, value):
         if value < 0:
@@ -29,6 +40,9 @@ class TipoInsumoSerializer(serializers.ModelSerializer):
 class RegistroInsumoSerializer(serializers.ModelSerializer):
     insumo_nombre = serializers.CharField(source="insumo.nombre", read_only=True)
     insumo_unidad = serializers.CharField(source="insumo.unidad", read_only=True)
+    usuario_nombre = serializers.CharField(
+        source="usuario.get_full_name", read_only=True
+    )
 
     class Meta:
         model = RegistroInsumo
@@ -37,6 +51,8 @@ class RegistroInsumoSerializer(serializers.ModelSerializer):
             "insumo",
             "insumo_nombre",
             "insumo_unidad",
+            "usuario",
+            "usuario_nombre",
             "cantidad",
             "costo_unitario",
             "costo_total",
@@ -44,7 +60,21 @@ class RegistroInsumoSerializer(serializers.ModelSerializer):
             "fecha",
             "observaciones",
         ]
-        read_only_fields = ["costo_total", "fecha"]
+        read_only_fields = ["costo_total", "fecha", "usuario"]
+
+
+class RegistroInsumoWriteSerializer(serializers.Serializer):
+    insumo = serializers.PrimaryKeyRelatedField(
+        queryset=TipoInsumo.objects.filter(activo=True)
+    )
+    cantidad = serializers.DecimalField(max_digits=10, decimal_places=2)
+    costo_unitario = serializers.DecimalField(max_digits=10, decimal_places=2)
+    proveedor = serializers.CharField(
+        max_length=150, required=False, allow_blank=True, default=""
+    )
+    observaciones = serializers.CharField(
+        max_length=255, required=False, allow_blank=True, default=""
+    )
 
     def validate_cantidad(self, value):
         if value <= 0:
@@ -55,7 +85,3 @@ class RegistroInsumoSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("El costo unitario debe ser mayor a 0.")
         return value
-
-    def create(self, validated_data):
-        validated_data["usuario"] = self.context["request"].user
-        return super().create(validated_data)

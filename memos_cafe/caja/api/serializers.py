@@ -1,38 +1,22 @@
 from rest_framework import serializers
 
-from memos_cafe_backend.caja.models import Caja
-from memos_cafe_backend.caja.models import Comprobante
-from memos_cafe_backend.caja.models import MovimientoCaja
-from memos_cafe_backend.caja.models import Pago
-from memos_cafe_backend.ordenes.api.serializers import OrdenReadSerializer
+from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, Pago
+from memos_cafe.ordenes.api.serializers import OrdenReadSerializer
+from memos_cafe.ordenes.models import Orden  # fix 3: import directo, sin __import__
 
 
-class AbrirCajaSerializer(serializers.ModelSerializer):
-    """El cajero abre la sesión con un monto inicial."""
-
-    class Meta:
-        model = Caja
-        fields = ["id", "monto_inicial"]
-
-    def validate(self, data):
-        if Caja.get_sesion_abierta():
-            raise serializers.ValidationError(
-                "Ya existe una sesión de caja abierta. Ciérrela antes de abrir una nueva."
-            )
-        return data
+class AbrirCajaSerializer(serializers.Serializer):
+    """Valida los datos para abrir una sesión de caja."""
+    monto_inicial = serializers.DecimalField(max_digits=10, decimal_places=2)
 
     def validate_monto_inicial(self, value):
         if value < 0:
             raise serializers.ValidationError("El monto inicial no puede ser negativo.")
         return value
 
-    def create(self, validated_data):
-        validated_data["usuario"] = self.context["request"].user
-        return super().create(validated_data)
-
 
 class CerrarCajaSerializer(serializers.Serializer):
-    """El cajero cierra la sesión con el monto contado."""
+    """Valida los datos para cerrar una sesión de caja."""
     monto_final = serializers.DecimalField(max_digits=10, decimal_places=2)
     observaciones = serializers.CharField(required=False, allow_blank=True, default="")
 
@@ -43,14 +27,12 @@ class CerrarCajaSerializer(serializers.Serializer):
 
 
 class CajaReadSerializer(serializers.ModelSerializer):
-    """Lectura del estado actual de la caja."""
-    usuario_nombre = serializers.CharField(source="usuario.get_full_name", read_only=True)
-    total_ventas = serializers.DecimalField(
-        max_digits=10, decimal_places=2, read_only=True
+    """Representación completa de una sesión de caja."""
+    usuario_nombre = serializers.CharField(
+        source="usuario.get_full_name", read_only=True
     )
-    diferencia = serializers.DecimalField(
-        max_digits=10, decimal_places=2, read_only=True
-    )
+    total_ventas = serializers.SerializerMethodField()
+    diferencia = serializers.SerializerMethodField()
 
     class Meta:
         model = Caja
@@ -68,30 +50,68 @@ class CajaReadSerializer(serializers.ModelSerializer):
             "observaciones",
         ]
 
+    def _get_total_ventas(self, obj) -> object:
+        """
+        Fix 9: calcula total_por_caja una sola vez y lo cachea en el objeto
+        durante la serialización. Antes se llamaba dos veces (get_total_ventas
+        + get_diferencia) = 2 queries por objeto en el listado.
+        Ahora = 1 query por objeto.
+        """
+        cache_attr = "_total_ventas_cache"
+        if not hasattr(obj, cache_attr):
+            resultado = Pago.objects.total_por_caja(obj)
+            setattr(obj, cache_attr, resultado["total"])
+        return getattr(obj, cache_attr)
 
-class MovimientoCajaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MovimientoCaja
-        fields = ["id", "tipo", "monto", "motivo", "fecha"]
-        read_only_fields = ["fecha"]
+    def get_total_ventas(self, obj):
+        return self._get_total_ventas(obj)
+
+    def get_diferencia(self, obj):
+        if obj.monto_final is None:
+            return None
+        total = self._get_total_ventas(obj)  # reutiliza el cache, sin query extra
+        return obj.monto_final - (obj.monto_inicial + total)
+
+
+class MovimientoCajaSerializer(serializers.Serializer):
+    """Valida datos para registrar un movimiento de caja."""
+    tipo = serializers.ChoiceField(choices=MovimientoCaja.Tipo.choices)
+    monto = serializers.DecimalField(max_digits=10, decimal_places=2)
+    motivo = serializers.CharField(max_length=200)
 
     def validate_monto(self, value):
         if value <= 0:
             raise serializers.ValidationError("El monto debe ser mayor a 0.")
         return value
 
-    def create(self, validated_data):
-        # La caja activa se asigna automáticamente
-        caja = Caja.get_sesion_abierta()
-        if not caja:
-            raise serializers.ValidationError("No hay una sesión de caja abierta.")
-        validated_data["caja"] = caja
-        return super().create(validated_data)
+
+class MovimientoCajaReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MovimientoCaja
+        fields = ["id", "tipo", "monto", "motivo", "fecha"]
+
+
+class PagoWriteSerializer(serializers.Serializer):
+    """Valida los datos para procesar un pago. Sin lógica de negocio."""
+    # Fix 3: import directo arriba del archivo — sin __import__ hack.
+    # El queryset se evalúa en cada request gracias al callable form.
+    orden = serializers.PrimaryKeyRelatedField(
+        queryset=Orden.objects.filter(estado="abierta")
+    )
+    metodo_pago = serializers.ChoiceField(choices=Pago.MetodoPago.choices)
+    monto = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    def validate_monto(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("El monto debe ser mayor a 0.")
+        return value
 
 
 class PagoReadSerializer(serializers.ModelSerializer):
-    """Lectura: incluye la orden anidada."""
     orden = OrdenReadSerializer(read_only=True)
+    metodo_pago_display = serializers.CharField(
+        source="get_metodo_pago_display", read_only=True
+    )
 
     class Meta:
         model = Pago
@@ -100,6 +120,7 @@ class PagoReadSerializer(serializers.ModelSerializer):
             "orden",
             "caja",
             "metodo_pago",
+            "metodo_pago_display",
             "monto",
             "vuelto",
             "estado",
@@ -107,51 +128,20 @@ class PagoReadSerializer(serializers.ModelSerializer):
         ]
 
 
-class PagoWriteSerializer(serializers.ModelSerializer):
-    """El cajero registra el cobro de una orden."""
-
-    class Meta:
-        model = Pago
-        fields = ["id", "orden", "metodo_pago", "monto"]
-
-    def validate_orden(self, orden):
-        if orden.estado != "abierta":
-            raise serializers.ValidationError(
-                "Solo se pueden cobrar órdenes abiertas."
-            )
-        if hasattr(orden, "pago"):
-            raise serializers.ValidationError(
-                "Esta orden ya tiene un pago registrado."
-            )
-        return orden
-
-    def validate(self, data):
-        orden = data.get("orden")
-        monto = data.get("monto")
-        if monto < orden.total:
-            raise serializers.ValidationError(
-                {"monto": f"El monto recibido (S/.{monto}) es menor al total de la orden (S/.{orden.total})."}
-            )
-        return data
-
-    def create(self, validated_data):
-        caja = Caja.get_sesion_abierta()
-        if not caja:
-            raise serializers.ValidationError("No hay una sesión de caja abierta.")
-        orden = validated_data["orden"]
-        monto = validated_data["monto"]
-        vuelto = monto - orden.total
-        pago = Pago.objects.create(
-            caja=caja,
-            vuelto=vuelto,
-            **validated_data,
-        )
-        # Cierra la orden automáticamente al cobrar
-        orden.cerrar()
-        return pago
+class ComprobanteWriteSerializer(serializers.Serializer):
+    """Valida datos para emitir un comprobante."""
+    pago = serializers.PrimaryKeyRelatedField(
+        queryset=Pago.objects.filter(estado="completado")
+    )
+    tipo = serializers.ChoiceField(choices=Comprobante.TipoComprobante.choices)
+    serie = serializers.CharField(max_length=10)
+    numero = serializers.IntegerField(min_value=1)
+    cliente_nombre = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    cliente_ruc_dni = serializers.CharField(max_length=11, required=False, allow_blank=True, default="")
+    cliente_direccion = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
 
 
-class ComprobanteSerializer(serializers.ModelSerializer):
+class ComprobanteReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comprobante
         fields = [
@@ -165,18 +155,3 @@ class ComprobanteSerializer(serializers.ModelSerializer):
             "cliente_direccion",
             "fecha_emision",
         ]
-        read_only_fields = ["fecha_emision"]
-
-    def validate(self, data):
-        tipo = data.get("tipo")
-        # Si es factura, los datos del cliente son obligatorios
-        if tipo == Comprobante.TipoComprobante.FACTURA:
-            if not data.get("cliente_nombre"):
-                raise serializers.ValidationError(
-                    {"cliente_nombre": "Requerido para facturas."}
-                )
-            if not data.get("cliente_ruc_dni"):
-                raise serializers.ValidationError(
-                    {"cliente_ruc_dni": "Requerido para facturas."}
-                )
-        return data

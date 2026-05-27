@@ -1,12 +1,11 @@
 from django.conf import settings
 from django.db import models
 
-from memos_cafe_backend.ordenes.models import Orden
+from memos_cafe.caja.managers import CajaManager, PagoManager
+from memos_cafe.ordenes.models import Orden
 
 
 class Caja(models.Model):
-    """Sesión de caja. El cajero abre al inicio del turno y cierra al final."""
-
     class Estado(models.TextChoices):
         ABIERTA = "abierta", "Abierta"
         CERRADA = "cerrada", "Cerrada"
@@ -21,21 +20,14 @@ class Caja(models.Model):
         choices=Estado.choices,
         default=Estado.ABIERTA,
     )
-    monto_inicial = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        help_text="Efectivo con el que se abre el turno.",
-    )
-    monto_final = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Efectivo contado al cerrar el turno.",
-    )
+    monto_inicial = models.DecimalField(max_digits=10, decimal_places=2)
+    monto_final = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     fecha_apertura = models.DateTimeField(auto_now_add=True)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
     observaciones = models.TextField(blank=True)
+
+    # Manager personalizado
+    objects = CajaManager()
 
     class Meta:
         db_table = "caja"
@@ -46,15 +38,10 @@ class Caja(models.Model):
     def __str__(self):
         return f"Caja #{self.id} — {self.usuario} ({self.estado})"
 
-    # --- Lógica de negocio ---
-
-    @classmethod
-    def get_sesion_abierta(cls):
-        """Devuelve la sesión de caja actualmente abierta, o None."""
-        return cls.objects.filter(estado=cls.Estado.ABIERTA).first()
+    # --- Comportamiento del objeto ---
 
     def cerrar(self, monto_final, observaciones=""):
-        """El cajero cierra la sesión al final del turno."""
+        """Cierra la sesión. Lanza ValueError si ya está cerrada."""
         from django.utils import timezone
         if self.estado != self.Estado.ABIERTA:
             raise ValueError("Esta sesión de caja ya está cerrada.")
@@ -65,34 +52,16 @@ class Caja(models.Model):
         self.save(update_fields=["estado", "monto_final", "observaciones", "fecha_cierre"])
 
     @property
-    def total_ventas(self):
-        """Suma de todos los pagos exitosos en esta sesión."""
-        return self.pagos.filter(
-            estado=Pago.Estado.COMPLETADO
-        ).aggregate(
-            total=models.Sum("monto")
-        )["total"] or 0
-
-    @property
-    def diferencia(self):
-        """Diferencia entre lo esperado y lo contado al cierre."""
-        if self.monto_final is None:
-            return None
-        return self.monto_final - (self.monto_inicial + self.total_ventas)
+    def esta_abierta(self):
+        return self.estado == self.Estado.ABIERTA
 
 
 class MovimientoCaja(models.Model):
-    """Registra entradas/salidas de efectivo dentro de una sesión (sin orden asociada)."""
-
     class Tipo(models.TextChoices):
         ENTRADA = "entrada", "Entrada"
         SALIDA = "salida", "Salida"
 
-    caja = models.ForeignKey(
-        Caja,
-        on_delete=models.PROTECT,
-        related_name="movimientos",
-    )
+    caja = models.ForeignKey(Caja, on_delete=models.PROTECT, related_name="movimientos")
     tipo = models.CharField(max_length=10, choices=Tipo.choices)
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     motivo = models.CharField(max_length=200)
@@ -109,7 +78,6 @@ class MovimientoCaja(models.Model):
 
 
 class Pago(models.Model):
-    """Registro del cobro de una orden."""
     class Estado(models.TextChoices):
         COMPLETADO = "completado", "Completado"
         ANULADO = "anulado", "Anulado"
@@ -120,25 +88,16 @@ class Pago(models.Model):
         YAPE = "yape", "Yape"
         PLIN = "plin", "Plin"
 
-    orden = models.OneToOneField(
-        Orden,
-        on_delete=models.PROTECT,
-        related_name="pago",
-    )
-    caja = models.ForeignKey(
-        Caja,
-        on_delete=models.PROTECT,
-        related_name="pagos",
-    )
+    orden = models.OneToOneField(Orden, on_delete=models.PROTECT, related_name="pago")
+    caja = models.ForeignKey(Caja, on_delete=models.PROTECT, related_name="pagos")
     metodo_pago = models.CharField(max_length=10, choices=MetodoPago.choices)
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     vuelto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    estado = models.CharField(
-        max_length=12,
-        choices=Estado.choices,
-        default=Estado.COMPLETADO,
-    )
+    estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.COMPLETADO)
     fecha = models.DateTimeField(auto_now_add=True)
+
+    # Manager personalizado
+    objects = PagoManager()
 
     class Meta:
         db_table = "pago"
@@ -149,10 +108,8 @@ class Pago(models.Model):
     def __str__(self):
         return f"Pago Orden #{self.orden_id} — S/.{self.monto}"
 
-    # --- Lógica de negocio ---
-
     def anular(self):
-        """El admin anula un pago por error."""
+        """Anula el pago. Solo el admin puede hacer esto via service."""
         if self.estado == self.Estado.ANULADO:
             raise ValueError("Este pago ya está anulado.")
         self.estado = self.Estado.ANULADO
@@ -160,21 +117,14 @@ class Pago(models.Model):
 
 
 class Comprobante(models.Model):
-    """Boleta o factura emitida al momento del pago."""
-
     class TipoComprobante(models.TextChoices):
         BOLETA = "boleta", "Boleta"
         FACTURA = "factura", "Factura"
 
-    pago = models.OneToOneField(
-        Pago,
-        on_delete=models.PROTECT,
-        related_name="comprobante",
-    )
+    pago = models.OneToOneField(Pago, on_delete=models.PROTECT, related_name="comprobante")
     tipo = models.CharField(max_length=10, choices=TipoComprobante.choices)
     serie = models.CharField(max_length=10)
     numero = models.PositiveIntegerField()
-    # Datos del cliente (necesarios para factura)
     cliente_nombre = models.CharField(max_length=150, blank=True)
     cliente_ruc_dni = models.CharField(max_length=11, blank=True)
     cliente_direccion = models.CharField(max_length=255, blank=True)
@@ -184,7 +134,6 @@ class Comprobante(models.Model):
         db_table = "comprobante"
         verbose_name = "Comprobante"
         verbose_name_plural = "Comprobantes"
-        # No puede existir dos comprobantes con la misma serie y número
         unique_together = [("serie", "numero")]
         ordering = ["-fecha_emision"]
 
