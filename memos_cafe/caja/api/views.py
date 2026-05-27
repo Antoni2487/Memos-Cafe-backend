@@ -1,38 +1,36 @@
-from rest_framework import status
+from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.viewsets import ModelViewSet
-from rest_framework import mixins
 
-from memos_cafe_backend.caja.models import Caja
-from memos_cafe_backend.caja.models import Comprobante
-from memos_cafe_backend.caja.models import MovimientoCaja
-from memos_cafe_backend.caja.models import Pago
-from memos_cafe_backend.caja.api.serializers import AbrirCajaSerializer
-from memos_cafe_backend.caja.api.serializers import CajaReadSerializer
-from memos_cafe_backend.caja.api.serializers import CerrarCajaSerializer
-from memos_cafe_backend.caja.api.serializers import ComprobanteSerializer
-from memos_cafe_backend.caja.api.serializers import MovimientoCajaSerializer
-from memos_cafe_backend.caja.api.serializers import PagoReadSerializer
-from memos_cafe_backend.caja.api.serializers import PagoWriteSerializer
-from memos_cafe_backend.utils.permissions import EsAdmin
-from memos_cafe_backend.utils.permissions import EsAdminOCajero
+from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, Pago
+from memos_cafe.caja.services import CajaService, ComprobanteService, PagoService
+from memos_cafe.caja.api.serializers import (
+    AbrirCajaSerializer,
+    CajaReadSerializer,
+    CerrarCajaSerializer,
+    ComprobanteReadSerializer,
+    ComprobanteWriteSerializer,
+    MovimientoCajaReadSerializer,
+    MovimientoCajaSerializer,
+    PagoReadSerializer,
+    PagoWriteSerializer,
+)
+from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero
 
 
 class CajaViewSet(GenericViewSet):
     """
-    estado:  GET  /api/caja/estado/  → admin o cajero
-    abrir:   POST /api/caja/abrir/   → admin o cajero
-    cerrar:  POST /api/caja/cerrar/  → admin o cajero
+    Gestión de sesiones de caja.
+    El ViewSet solo maneja HTTP — delega toda la lógica a CajaService.
     """
     permission_classes = [EsAdminOCajero]
     queryset = Caja.objects.all()
 
     @action(detail=False, methods=["get"], url_path="estado")
     def estado(self, request):
-        """GET /api/caja/estado/ — devuelve la sesión actualmente abierta."""
-        caja = Caja.get_sesion_abierta()
+        """GET /api/caja/estado/ — sesión actualmente abierta."""
+        caja = Caja.objects.get_sesion_abierta()
         if not caja:
             return Response(
                 {"detail": "No hay ninguna sesión de caja abierta."},
@@ -42,30 +40,30 @@ class CajaViewSet(GenericViewSet):
 
     @action(detail=False, methods=["post"], url_path="abrir")
     def abrir(self, request):
-        """POST /api/caja/abrir/ — abre una nueva sesión de caja."""
-        serializer = AbrirCajaSerializer(
-            data=request.data,
-            context={"request": request},
-        )
+        """POST /api/caja/abrir/"""
+        serializer = AbrirCajaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        caja = serializer.save()
+        try:
+            caja = CajaService.abrir_sesion(
+                usuario=request.user,
+                monto_inicial=serializer.validated_data["monto_inicial"],
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(CajaReadSerializer(caja).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["post"], url_path="cerrar")
     def cerrar(self, request):
-        """POST /api/caja/cerrar/ — cierra la sesión activa."""
-        caja = Caja.get_sesion_abierta()
-        if not caja:
-            return Response(
-                {"detail": "No hay ninguna sesión de caja abierta."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        """POST /api/caja/cerrar/"""
         serializer = CerrarCajaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        caja.cerrar(
-            monto_final=serializer.validated_data["monto_final"],
-            observaciones=serializer.validated_data.get("observaciones", ""),
-        )
+        try:
+            caja = CajaService.cerrar_sesion(
+                monto_final=serializer.validated_data["monto_final"],
+                observaciones=serializer.validated_data.get("observaciones", ""),
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(CajaReadSerializer(caja).data)
 
 
@@ -74,64 +72,106 @@ class MovimientoCajaViewSet(
     mixins.ListModelMixin,
     GenericViewSet,
 ):
-    """
-    list:   GET  /api/movimientos/  → admin o cajero
-    create: POST /api/movimientos/  → admin o cajero
-    """
-    serializer_class = MovimientoCajaSerializer
+    """Movimientos de efectivo dentro de una sesión de caja."""
     permission_classes = [EsAdminOCajero]
 
+    def get_serializer_class(self):
+        if self.action == "create":
+            return MovimientoCajaSerializer
+        return MovimientoCajaReadSerializer
+
     def get_queryset(self):
-        caja = Caja.get_sesion_abierta()
+        caja = Caja.objects.get_sesion_abierta()
         if not caja:
             return MovimientoCaja.objects.none()
         return caja.movimientos.all()
 
+    def create(self, request, *args, **kwargs):
+        serializer = MovimientoCajaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            movimiento = CajaService.registrar_movimiento(
+                tipo=serializer.validated_data["tipo"],
+                monto=serializer.validated_data["monto"],
+                motivo=serializer.validated_data["motivo"],
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            MovimientoCajaReadSerializer(movimiento).data,
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class PagoViewSet(
-    mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
     """
-    list:    GET  /api/pagos/      → admin o cajero
-    create:  POST /api/pagos/      → admin o cajero
-    retrieve:GET  /api/pagos/{id}/ → admin o cajero
-    anular:  POST /api/pagos/{id}/anular/ → solo admin
+    Gestión de pagos.
+    El create va en un action separado para mayor control.
     """
     permission_classes = [EsAdminOCajero]
 
     def get_queryset(self):
-        return Pago.objects.select_related("orden", "caja").all()
+        return (
+            Pago.objects
+            .select_related("orden", "orden__mesa", "orden__usuario", "caja")
+            .all()
+        )
 
     def get_serializer_class(self):
-        if self.action == "create":
-            return PagoWriteSerializer
         return PagoReadSerializer
+
+    @action(detail=False, methods=["post"], url_path="procesar")
+    def procesar(self, request):
+        """POST /api/pagos/procesar/ — cobra una orden."""
+        serializer = PagoWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            pago = PagoService.procesar_pago(
+                orden=serializer.validated_data["orden"],
+                metodo_pago=serializer.validated_data["metodo_pago"],
+                monto=serializer.validated_data["monto"],
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PagoReadSerializer(pago).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="anular", permission_classes=[EsAdmin])
     def anular(self, request, pk=None):
         """POST /api/pagos/{id}/anular/ — solo admin."""
         pago = self.get_object()
         try:
-            pago.anular()
+            PagoService.anular_pago(pago)
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(PagoReadSerializer(pago).data)
 
 
 class ComprobanteViewSet(
-    mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
-    """
-    list:    GET  /api/comprobantes/      → admin o cajero
-    create:  POST /api/comprobantes/      → admin o cajero
-    retrieve:GET  /api/comprobantes/{id}/ → admin o cajero
-    """
-    serializer_class = ComprobanteSerializer
+    """Emisión y consulta de comprobantes."""
     permission_classes = [EsAdminOCajero]
     queryset = Comprobante.objects.select_related("pago").all()
+
+    def get_serializer_class(self):
+        return ComprobanteReadSerializer
+
+    @action(detail=False, methods=["post"], url_path="emitir")
+    def emitir(self, request):
+        """POST /api/comprobantes/emitir/"""
+        serializer = ComprobanteWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            comprobante = ComprobanteService.emitir(**serializer.validated_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            ComprobanteReadSerializer(comprobante).data,
+            status=status.HTTP_201_CREATED,
+        )

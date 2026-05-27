@@ -1,99 +1,108 @@
-from rest_framework import status
+from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import GenericViewSet
 
-from memos_cafe_backend.ordenes.models import DetalleOrden
-from memos_cafe_backend.ordenes.models import Orden
-from memos_cafe_backend.ordenes.api.serializers import DetalleOrdenWriteSerializer
-from memos_cafe_backend.ordenes.api.serializers import OrdenReadSerializer
-from memos_cafe_backend.ordenes.api.serializers import OrdenWriteSerializer
-from memos_cafe_backend.utils.permissions import EsAdmin
-from memos_cafe_backend.utils.permissions import EsAdminOMesero
-from memos_cafe_backend.utils.permissions import TodosAutenticados
+from memos_cafe.ordenes.models import Orden
+from memos_cafe.ordenes.services import DetalleOrdenService, OrdenService
+from memos_cafe.ordenes.api.serializers import (
+    DetalleOrdenWriteSerializer,
+    OrdenReadSerializer,
+    OrdenWriteSerializer,
+)
+from memos_cafe.utils.permissions import EsAdmin, EsAdminOMesero, TodosAutenticados
 
 
-class OrdenViewSet(ModelViewSet):
+class OrdenViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    GenericViewSet,
+):
     """
-    list:    GET  /api/ordenes/              → todos los roles
-    create:  POST /api/ordenes/              → admin o mesero
-    retrieve:GET  /api/ordenes/{id}/         → todos los roles
-    destroy: DELETE /api/ordenes/{id}/       → solo admin (anula)
-    anular:  POST /api/ordenes/{id}/anular/  → solo admin
+    Gestión de órdenes.
+    El ViewSet solo maneja HTTP — delega lógica a OrdenService.
     """
 
     def get_queryset(self):
         user = self.request.user
-        # El mesero solo ve sus propias órdenes abiertas
+        # Mesero solo ve sus propias órdenes abiertas
         if user.groups.filter(name="mesero").exists():
-            return Orden.objects.filter(
-                usuario=user,
-                estado=Orden.Estado.ABIERTA,
-            ).prefetch_related("detalles__producto", "detalles__promocion")
+            return Orden.objects.abiertas_por_usuario(user)
         # Cajero y admin ven todas las abiertas
-        return Orden.objects.filter(
-            estado=Orden.Estado.ABIERTA,
-        ).prefetch_related("detalles__producto", "detalles__promocion")
+        return Orden.objects.abiertas()
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [TodosAutenticados()]
-        if self.action in ["create", "agregar_detalle", "eliminar_detalle"]:
+        if self.action in ["crear", "agregar_detalle", "eliminar_detalle"]:
             return [EsAdminOMesero()]
         return [EsAdmin()]
 
     def get_serializer_class(self):
-        if self.action == "create":
-            return OrdenWriteSerializer
         return OrdenReadSerializer
 
-    def destroy(self, request, *args, **kwargs):
-        """Anula la orden en vez de borrarla físicamente."""
-        orden = self.get_object()
+    @action(detail=False, methods=["post"], url_path="crear")
+    def crear(self, request):
+        """POST /api/ordenes/crear/ — crea una orden con sus ítems."""
+        serializer = OrdenWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         try:
-            orden.anular()
+            orden = OrdenService.crear_orden(
+                usuario=request.user,
+                tipo_orden=serializer.validated_data["tipo_orden"],
+                mesa=serializer.validated_data.get("mesa"),
+                detalles=serializer.validated_data["detalles"],
+            )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(OrdenReadSerializer(orden).data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=["post"], url_path="anular")
+    @action(detail=True, methods=["post"], url_path="anular", permission_classes=[EsAdmin])
     def anular(self, request, pk=None):
-        """POST /api/ordenes/{id}/anular/"""
+        """POST /api/ordenes/{id}/anular/ — solo admin."""
         orden = self.get_object()
         try:
-            orden.anular()
+            OrdenService.anular_orden(orden)
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(OrdenReadSerializer(orden).data)
 
-    @action(detail=True, methods=["post"], url_path="detalles")
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="detalles",
+        permission_classes=[EsAdminOMesero],
+    )
     def agregar_detalle(self, request, pk=None):
-        """POST /api/ordenes/{id}/detalles/ — agrega un ítem a la orden."""
+        """POST /api/ordenes/{id}/detalles/ — agrega un ítem."""
         orden = self.get_object()
-        if orden.estado != Orden.Estado.ABIERTA:
-            return Response(
-                {"detail": "No se pueden agregar ítems a una orden cerrada o anulada."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        serializer = DetalleOrdenWriteSerializer(
-            data=request.data,
-            context={"request": request},
-        )
+        serializer = DetalleOrdenWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(orden=orden)
+        try:
+            DetalleOrdenService.agregar_detalle(
+                orden=orden,
+                **serializer.validated_data,
+            )
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        orden.refresh_from_db()
         return Response(OrdenReadSerializer(orden).data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=["delete"], url_path=r"detalles/(?P<detalle_id>\d+)")
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path=r"detalles/(?P<detalle_id>\d+)",
+        permission_classes=[EsAdminOMesero],
+    )
     def eliminar_detalle(self, request, pk=None, detalle_id=None):
-        """DELETE /api/ordenes/{id}/detalles/{detalle_id}/ — quita un ítem."""
+        """DELETE /api/ordenes/{id}/detalles/{detalle_id}/"""
         orden = self.get_object()
         try:
-            detalle = orden.detalles.get(id=detalle_id)
-        except DetalleOrden.DoesNotExist:
-            return Response(
-                {"detail": "Detalle no encontrado."},
-                status=status.HTTP_404_NOT_FOUND,
+            DetalleOrdenService.eliminar_detalle(
+                orden=orden,
+                detalle_id=int(detalle_id),
             )
-        detalle.delete()
-        orden.recalcular_total()
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        orden.refresh_from_db()
         return Response(OrdenReadSerializer(orden).data)

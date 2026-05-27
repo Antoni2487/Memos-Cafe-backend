@@ -3,12 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from memos_cafe_backend.mesas.models import Mesa
-from memos_cafe_backend.mesas.api.serializers import MesaEstadoSerializer
-from memos_cafe_backend.mesas.api.serializers import MesaSerializer
-from memos_cafe_backend.utils.permissions import EsAdmin
-from memos_cafe_backend.utils.permissions import EsAdminOMesero
-from memos_cafe_backend.utils.permissions import TodosAutenticados
+from memos_cafe.mesas.models import Mesa
+from memos_cafe.mesas.api.serializers import MesaEstadoSerializer
+from memos_cafe.mesas.api.serializers import MesaSerializer
+from memos_cafe.utils.permissions import EsAdmin
+from memos_cafe.utils.permissions import EsAdminOMesero
+from memos_cafe.utils.permissions import TodosAutenticados
 
 
 class MesaViewSet(ModelViewSet):
@@ -42,9 +42,29 @@ class MesaViewSet(ModelViewSet):
 
     @action(detail=True, methods=["patch"], url_path="estado")
     def estado(self, request, pk=None):
-        """PATCH /api/mesas/{id}/estado/ — cambia el estado de la mesa."""
+        """PATCH /api/mesas/{id}/estado/ — cambia el estado de la mesa.
+
+        Fix 6a: en lugar de dejar que el serializer escriba el campo estado
+        directamente (bypaseando ocupar/liberar), ahora el serializer solo
+        valida la transición y devuelve el valor, y la view llama al método
+        correcto del modelo.
+
+        Fix 6b: la respuesta ya no usa el objeto `mesa` en memoria (stale),
+        sino `serializer.instance` que refleja el estado actualizado.
+        """
         mesa = self.get_object()
         serializer = MesaEstadoSerializer(mesa, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+
+        nuevo_estado = serializer.validated_data["estado"]
+
+        
+        if nuevo_estado == Mesa.Estado.OCUPADA:
+            mesa.ocupar()
+        elif nuevo_estado == Mesa.Estado.LIBRE:
+            mesa.liberar()
+        elif nuevo_estado == Mesa.Estado.RESERVADA:
+            mesa.estado = Mesa.Estado.RESERVADA
+            mesa.save(update_fields=["estado"])
+
         return Response(MesaSerializer(mesa).data)
