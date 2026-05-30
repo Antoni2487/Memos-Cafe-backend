@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PrivateRoute from "./PrivateRoute";
 import { ROLES } from "../utils/constants";
+import Layout from "../components/layout/Layout"; // ← agrega esto
 
 // Pages
 import LoginPage from "../pages/auth/LoginPage";
@@ -20,30 +21,36 @@ export default function AppRouter() {
         {/* Pública */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Todos los roles autenticados */}
-        <Route element={<PrivateRoute />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/mesas" element={<MesasPage />} />
-          <Route path="/ordenes" element={<OrdenesPage />} />
-          <Route path="/comanda" element={<ComandaPage />} />
-        </Route>
+        {
+          /* Rutas protegidas dentro del layout común */
+        }
+        <Route element={<Layout />}> {
 
-        {/* Solo admin y cajero */}
-        <Route element={<PrivateRoute roles={[ROLES.ADMIN, ROLES.CAJERO]} />}>
-          <Route path="/caja" element={<CajaPage />} />
-        </Route>
+        }
 
-        {/* Solo admin */}
-        <Route element={<PrivateRoute roles={[ROLES.ADMIN]} />}>
-          <Route path="/productos" element={<ProductosPage />} />
-          <Route path="/reportes" element={<ReportesPage />} />
-          <Route path="/insumos" element={<InsumosPage />} />
-        </Route>
+          {/* Todos los roles autenticados */}
+          <Route element={<PrivateRoute />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/mesas" element={<MesasPage />} />
+            <Route path="/ordenes" element={<OrdenesPage />} />
+            <Route path="/comanda" element={<ComandaPage />} />
+          </Route>
 
-        {/* Redirige raíz al dashboard */}
+          {/* Solo admin y cajero */}
+          <Route element={<PrivateRoute roles={[ROLES.ADMIN, ROLES.CAJERO]} />}>
+            <Route path="/caja" element={<CajaPage />} />
+          </Route>
+
+          {/* Solo admin */}
+          <Route element={<PrivateRoute roles={[ROLES.ADMIN]} />}>
+            <Route path="/productos" element={<ProductosPage />} />
+            <Route path="/reportes" element={<ReportesPage />} />
+            <Route path="/insumos" element={<InsumosPage />} />
+          </Route>
+
+        </Route> {/* ← cierra Layout */}
+
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-        {/* 404 */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
