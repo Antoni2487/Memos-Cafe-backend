@@ -42,16 +42,6 @@ class MesaViewSet(ModelViewSet):
 
     @action(detail=True, methods=["patch"], url_path="estado")
     def estado(self, request, pk=None):
-        """PATCH /api/mesas/{id}/estado/ — cambia el estado de la mesa.
-
-        Fix 6a: en lugar de dejar que el serializer escriba el campo estado
-        directamente (bypaseando ocupar/liberar), ahora el serializer solo
-        valida la transición y devuelve el valor, y la view llama al método
-        correcto del modelo.
-
-        Fix 6b: la respuesta ya no usa el objeto `mesa` en memoria (stale),
-        sino `serializer.instance` que refleja el estado actualizado.
-        """
         mesa = self.get_object()
         serializer = MesaEstadoSerializer(mesa, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
