@@ -13,6 +13,7 @@ import ProductosPage from "../pages/productos/ProductosPage";
 import CajaPage from "../pages/caja/CajaPage";
 import ReportesPage from "../pages/reportes/ReportesPage";
 import InsumosPage from "../pages/insumos/InsumosPage";
+import UsuariosPage from "../pages/usuarios/UsuariosPage";
 
 export default function AppRouter() {
   return (
@@ -41,11 +42,11 @@ export default function AppRouter() {
             <Route path="/caja" element={<CajaPage />} />
           </Route>
 
-          {/* Solo admin */}
           <Route element={<PrivateRoute roles={[ROLES.ADMIN]} />}>
             <Route path="/productos" element={<ProductosPage />} />
             <Route path="/reportes" element={<ReportesPage />} />
             <Route path="/insumos" element={<InsumosPage />} />
+            <Route path="/usuarios" element={<UsuariosPage />} /> 
           </Route>
 
         </Route> {/* ← cierra Layout */}

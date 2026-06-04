@@ -1,4 +1,5 @@
 from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from memos_cafe.reportes.views import (
@@ -7,12 +8,19 @@ from memos_cafe.reportes.views import (
     ReporteProductosView,
     ReporteVentasView,
 )
-from memos_cafe.users.api.views import CustomTokenObtainPairView
+from memos_cafe.users.api.views import CustomTokenObtainPairView, UserViewSet
+
+# ── Router para ViewSets ──────────────────────────────────────────
+router = DefaultRouter()
+router.register(r"users", UserViewSet, basename="user")
 
 urlpatterns = [
     # Auth JWT
     path("auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
+    # Users
+    path("", include(router.urls)),
 
     # Apps
     path("mesas/", include("memos_cafe.mesas.urls")),

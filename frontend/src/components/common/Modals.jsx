@@ -45,7 +45,7 @@ export function ConfirmDialog({
   if (!abierto) return null;
 
   const colores = {
-    danger:  { bg: "#c62828", hover: "#b71c1c", icon: "#fdecea", iconColor: "#c62828" },
+    danger: { bg: "#c62828", hover: "#b71c1c", icon: "#fdecea", iconColor: "#c62828" },
     warning: { bg: "#f57f17", hover: "#e65100", icon: "#fff8e1", iconColor: "#f57f17" },
     primary: { bg: "#2C5545", hover: "#1E4A37", icon: "rgba(44,85,69,0.1)", iconColor: "#2C5545" },
   };
@@ -75,8 +75,14 @@ export function ConfirmDialog({
         </h3>
         {descripcion && (
           <p
-            className="text-center"
-            style={{ fontFamily: "'Lato', sans-serif", fontSize: "13.5px", color: "#666", margin: "0 0 20px 0", lineHeight: 1.5 }}
+            className="text-center whitespace-pre-line"
+            style={{
+              fontFamily: "'Lato', sans-serif",
+              fontSize: "13.5px",
+              color: "#666",
+              margin: "0 0 20px 0",
+              lineHeight: 1.5,
+            }}
           >
             {descripcion}
           </p>
