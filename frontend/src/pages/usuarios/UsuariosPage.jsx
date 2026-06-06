@@ -11,9 +11,9 @@ import useUsuarios from "../../hooks/useUsuarios";
 import { ROLES } from "../../utils/constants";
 
 const ROL_COLORES = {
-  [ROLES.ADMIN]:  { bg: "rgba(44,85,69,0.12)",   color: "#2C5545" },
-  [ROLES.CAJERO]: { bg: "rgba(201,168,76,0.15)",  color: "#9a7a1a" },
-  [ROLES.MESERO]: { bg: "rgba(33,150,243,0.12)",  color: "#1565c0" },
+  [ROLES.ADMIN]: { bg: "rgba(44,85,69,0.12)", color: "#2C5545" },
+  [ROLES.CAJERO]: { bg: "rgba(201,168,76,0.15)", color: "#9a7a1a" },
+  [ROLES.MESERO]: { bg: "rgba(33,150,243,0.12)", color: "#1565c0" },
 };
 
 const BTN_BASE = {
@@ -29,6 +29,7 @@ export default function UsuariosPage() {
     pagina, setPagina, POR_PAGINA,
     showForm, usuarioEditar, usuarioEliminar, usuarioToggle,
     setUsuarioEliminar, setUsuarioToggle,
+    error, setError,
     handleBuscar, handleGuardar, handleEliminar, handleToggleActivo,
     abrirEditar, abrirNuevo, cerrarForm,
   } = useUsuarios();
@@ -151,6 +152,21 @@ export default function UsuariosPage() {
         }
       />
 
+      {error && (
+        <div
+          onClick={() => setError(null)}
+          style={{
+            backgroundColor: "rgba(198,40,40,0.08)",
+            border: "1px solid rgba(198,40,40,0.25)",
+            borderRadius: "8px", padding: "10px 14px",
+            marginBottom: 16, cursor: "pointer",
+            fontFamily: "'Lato', sans-serif",
+            fontSize: "13px", color: "#c62828",
+          }}
+        >
+          ⚠ {error} — <span style={{textDecoration:"underline"}}>Cerrar</span>
+        </div>
+      )}
       <div className="mb-4">
         <SearchBar placeholder="Buscar por nombre o email..." onBuscar={handleBuscar} />
       </div>
