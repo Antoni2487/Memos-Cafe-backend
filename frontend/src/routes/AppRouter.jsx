@@ -33,8 +33,10 @@ export default function AppRouter() {
         }
 
           {/* Todos los roles autenticados */}
-          <Route element={<PrivateRoute />}>
+          <Route element={<PrivateRoute roles={[ROLES.ADMIN]} />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+          </Route>
+          <Route element={<PrivateRoute />}>
             <Route path="/home" element={<HomePage />} />
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/ordenes" element={<OrdenesPage />} />
