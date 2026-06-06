@@ -6,6 +6,8 @@ import Layout from "../components/layout/Layout"; // ← agrega esto
 // Pages
 import LoginPage from "../pages/auth/LoginPage";
 import DashboardPage from "../pages/dashboard/DashboardPage";
+import HomePage from "../pages/home/HomePage";
+import HomeRedirect from "./HomeRedirect";
 import MesasPage from "../pages/mesas/MesasPage";
 import OrdenesPage from "../pages/ordenes/OrdenesPage";
 import ComandaPage from "../pages/ordenes/ComandaPage";
@@ -33,6 +35,7 @@ export default function AppRouter() {
           {/* Todos los roles autenticados */}
           <Route element={<PrivateRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/home" element={<HomePage />} />
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/ordenes" element={<OrdenesPage />} />
             <Route path="/comanda" element={<ComandaPage />} />
@@ -53,8 +56,8 @@ export default function AppRouter() {
 
         </Route> {/* ← cierra Layout */}
 
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<HomeRedirect />} />
+        <Route path="*" element={<HomeRedirect />} />
       </Routes>
     </BrowserRouter>
   );
