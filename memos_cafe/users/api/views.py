@@ -5,12 +5,12 @@ from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework.mixins import UpdateModelMixin, CreateModelMixin, DestroyModelMixin
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from memos_cafe.users.models import User
 from memos_cafe.users.api.serializers import CustomTokenObtainPairSerializer
 from memos_cafe.users.api.serializers import UserSerializer
+from memos_cafe.utils.permissions import EsAdmin, TodosAutenticados
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -30,39 +30,38 @@ class UserViewSet(
     lookup_field = "pk"
 
     def get_permissions(self):
-        if self.action in ["create", "destroy"]:
-            return [IsAdminUser()]
-        return [IsAuthenticated()]
+        if self.action in ["create", "destroy", "list", "update", "partial_update"]:
+            return [EsAdmin()]
+        return [TodosAutenticados()]
 
     def get_queryset(self, *args, **kwargs):
         if not self.request.user.is_authenticated:
             return User.objects.none()
-        if self.request.user.is_staff:
-            return self.queryset.all()
-        return self.queryset.filter(id=self.request.user.id)
+        if self.request.user.groups.filter(name="admin").exists():
+            return User.objects.prefetch_related("groups").all()
+        return User.objects.filter(id=self.request.user.id)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
+        serializer.save()
 
-        # Actualizar rol
-        group_id = request.data.get('group_id')
-        if group_id is not None:
+        group_name = request.data.get("group_name")
+        if group_name is not None:
             instance.groups.clear()
-            if group_id != "" and str(group_id) != "0":
+            if group_name:
                 try:
-                    group = Group.objects.get(id=group_id)
-                    instance.groups.add(group)
+                    instance.groups.add(Group.objects.get(name=group_name))
                 except Group.DoesNotExist:
                     pass
 
         instance.refresh_from_db()
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        return Response(self.get_serializer(instance).data)
 
     @action(detail=False, methods=["get"])
     def me(self, request):
+        """GET /api/users/me/ — perfil del usuario autenticado."""
         serializer = UserSerializer(request.user, context={"request": request})
         return Response(status=status.HTTP_200_OK, data=serializer.data)
