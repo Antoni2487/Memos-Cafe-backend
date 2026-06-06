@@ -1,8 +1,4 @@
-import { useEffect, useState } from "react";
-import usuarioService from "../../services/usuarioService";
-import UsuarioForm from "../../components/usuarios/UsuarioForm";
-// import para libreria de iconos
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, PowerOff } from "lucide-react";
 import {
   PageHeader,
   DataTable,
@@ -10,75 +6,32 @@ import {
   SearchBar,
   ConfirmDialog,
 } from "../../components/common";
+import UsuarioForm from "../../components/usuarios/UsuarioForm";
+import useUsuarios from "../../hooks/useUsuarios";
+import { ROLES } from "../../utils/constants";
 
-const POR_PAGINA = 10;
+const ROL_COLORES = {
+  [ROLES.ADMIN]:  { bg: "rgba(44,85,69,0.12)",   color: "#2C5545" },
+  [ROLES.CAJERO]: { bg: "rgba(201,168,76,0.15)",  color: "#9a7a1a" },
+  [ROLES.MESERO]: { bg: "rgba(33,150,243,0.12)",  color: "#1565c0" },
+};
+
+const BTN_BASE = {
+  width: 30, height: 30, borderRadius: "6px",
+  backgroundColor: "white", cursor: "pointer",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  transition: "all 0.15s",
+};
 
 export default function UsuariosPage() {
-  const [usuarios, setUsuarios] = useState([]);
-  const [filtrados, setFiltrados] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
-  const [eliminando, setEliminando] = useState(false);
-  const [pagina, setPagina] = useState(1);
-  const [showForm, setShowForm] = useState(false);
-  const [usuarioEditar, setUsuarioEditar] = useState(null);
-  const [usuarioEliminar, setUsuarioEliminar] = useState(null);
-
-  const cargar = async () => {
-    try {
-      setCargando(true);
-      const { data } = await usuarioService.getAll();
-      // El backend devuelve { count, results, next, previous }
-      const lista = data.results ?? data;
-      setUsuarios(lista);
-      setFiltrados(lista);
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  useEffect(() => { cargar(); }, []);
-
-  const handleBuscar = (texto) => {
-    const t = texto.toLowerCase();
-    setFiltrados(
-      usuarios.filter((u) =>
-        u.email.toLowerCase().includes(t) ||
-        (u.name || "").toLowerCase().includes(t)
-      )
-    );
-    setPagina(1);
-  };
-
-  const handleGuardar = async (datos) => {
-    try {
-      setGuardando(true);
-      usuarioEditar
-        ? await usuarioService.update(usuarioEditar.id, datos)
-        : await usuarioService.create(datos);
-      setShowForm(false);
-      setUsuarioEditar(null);
-      await cargar();
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const handleEliminar = async () => {
-    try {
-      setEliminando(true);
-      await usuarioService.delete(usuarioEliminar.id);
-      setUsuarioEliminar(null);
-      await cargar();
-    } finally {
-      setEliminando(false);
-    }
-  };
-
-  const abrirEditar = (u) => { setUsuarioEditar(u); setShowForm(true); };
-  const abrirNuevo = () => { setUsuarioEditar(null); setShowForm(true); };
-
-  const paginados = filtrados.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+  const {
+    paginados, filtrados, cargando, guardando, eliminando, togglando,
+    pagina, setPagina, POR_PAGINA,
+    showForm, usuarioEditar, usuarioEliminar, usuarioToggle,
+    setUsuarioEliminar, setUsuarioToggle,
+    handleBuscar, handleGuardar, handleEliminar, handleToggleActivo,
+    abrirEditar, abrirNuevo, cerrarForm,
+  } = useUsuarios();
 
   const columnas = [
     {
@@ -112,18 +65,12 @@ export default function UsuariosPage() {
       width: "120px",
       render: (u) => {
         const rol = u.groups?.[0]?.name ?? "Sin rol";
-        const colores = {
-          admin: { bg: "rgba(44,85,69,0.12)", color: "#2C5545" },
-          cajero: { bg: "rgba(201,168,76,0.15)", color: "#9a7a1a" },
-          mozo: { bg: "rgba(33,150,243,0.12)", color: "#1565c0" },
-        };
-        const c = colores[rol.toLowerCase()] ?? { bg: "rgba(120,120,120,0.1)", color: "#666" };
+        const c = ROL_COLORES[rol] ?? { bg: "rgba(120,120,120,0.1)", color: "#666" };
         return (
           <span style={{
             display: "inline-flex", alignItems: "center",
             backgroundColor: c.bg, color: c.color,
-            borderRadius: "999px",
-            fontFamily: "'Lato', sans-serif",
+            borderRadius: "999px", fontFamily: "'Lato', sans-serif",
             fontSize: "11px", fontWeight: 700,
             padding: "3px 10px", letterSpacing: "0.04em",
             textTransform: "capitalize",
@@ -149,34 +96,31 @@ export default function UsuariosPage() {
     },
     {
       label: "Acciones",
-      width: "90px",
+      width: "110px",
       render: (u) => (
         <div className="flex items-center gap-1">
           <button
             onClick={() => abrirEditar(u)}
             title="Editar"
-            style={{
-              width: 30, height: 30, borderRadius: "6px",
-              border: "1px solid rgba(44,85,69,0.2)",
-              backgroundColor: "white", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#2C5545", transition: "all 0.15s",
-            }}
+            style={{ ...BTN_BASE, border: "1px solid rgba(44,85,69,0.2)", color: "#2C5545" }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(44,85,69,0.08)"}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "white"}
           >
             <Pencil size={13} strokeWidth={2} />
           </button>
           <button
+            onClick={() => setUsuarioToggle(u)}
+            title={u.is_active ? "Desactivar" : "Activar"}
+            style={{ ...BTN_BASE, border: "1px solid rgba(245,127,23,0.3)", color: "#f57f17" }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(245,127,23,0.08)"}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "white"}
+          >
+            <PowerOff size={13} strokeWidth={2} />
+          </button>
+          <button
             onClick={() => setUsuarioEliminar(u)}
             title="Eliminar"
-            style={{
-              width: 30, height: 30, borderRadius: "6px",
-              border: "1px solid rgba(198,40,40,0.2)",
-              backgroundColor: "white", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#c62828", transition: "all 0.15s",
-            }}
+            style={{ ...BTN_BASE, border: "1px solid rgba(198,40,40,0.2)", color: "#c62828" }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(198,40,40,0.06)"}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "white"}
           >
@@ -198,10 +142,8 @@ export default function UsuariosPage() {
             style={{
               backgroundColor: "#2C5545", color: "white",
               border: "none", borderRadius: "8px",
-              padding: "9px 16px",
-              fontFamily: "'Lato', sans-serif",
-              fontSize: "13px", fontWeight: 600,
-              cursor: "pointer",
+              padding: "9px 16px", fontFamily: "'Lato', sans-serif",
+              fontSize: "13px", fontWeight: 600, cursor: "pointer",
             }}
           >
             + Nuevo Usuario
@@ -209,15 +151,10 @@ export default function UsuariosPage() {
         }
       />
 
-      {/* Buscador */}
       <div className="mb-4">
-        <SearchBar
-          placeholder="Buscar por nombre o email..."
-          onBuscar={handleBuscar}
-        />
+        <SearchBar placeholder="Buscar por nombre o email..." onBuscar={handleBuscar} />
       </div>
 
-      {/* Tabla */}
       <DataTable
         columnas={columnas}
         datos={paginados}
@@ -229,16 +166,25 @@ export default function UsuariosPage() {
         textoVacio="No hay usuarios registrados"
       />
 
-      {/* Formulario */}
       <UsuarioForm
         abierto={showForm}
         usuario={usuarioEditar}
         onGuardar={handleGuardar}
-        onCerrar={() => { setShowForm(false); setUsuarioEditar(null); }}
+        onCerrar={cerrarForm}
         cargando={guardando}
       />
 
-      {/* Confirmar eliminar */}
+      <ConfirmDialog
+        abierto={!!usuarioToggle}
+        titulo={usuarioToggle?.is_active ? "¿Desactivar usuario?" : "¿Activar usuario?"}
+        descripcion={`${usuarioToggle?.is_active ? "Se desactivará" : "Se activará"} la cuenta de ${usuarioToggle?.email}.`}
+        textoOk={usuarioToggle?.is_active ? "Sí, desactivar" : "Sí, activar"}
+        variante={usuarioToggle?.is_active ? "warning" : "primary"}
+        cargando={togglando}
+        onConfirmar={handleToggleActivo}
+        onCancelar={() => setUsuarioToggle(null)}
+      />
+
       <ConfirmDialog
         abierto={!!usuarioEliminar}
         titulo="¿Eliminar usuario?"

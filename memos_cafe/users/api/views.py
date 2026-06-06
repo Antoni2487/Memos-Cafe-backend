@@ -30,7 +30,7 @@ class UserViewSet(
     lookup_field = "pk"
 
     def get_permissions(self):
-        if self.action in ["create", "destroy", "list", "update", "partial_update"]:
+        if self.action in ["create", "destroy", "list", "update", "partial_update", "toggle_activo"]:
             return [EsAdmin()]
         return [TodosAutenticados()]
 
@@ -58,6 +58,29 @@ class UserViewSet(
                     pass
 
         instance.refresh_from_db()
+        return Response(self.get_serializer(instance).data)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.id == request.user.id:
+            return Response(
+                {"detail": "No puedes eliminar tu propia cuenta."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="toggle-activo")
+    def toggle_activo(self, request, pk=None):
+        """POST /api/users/{id}/toggle-activo/ — activa o desactiva un usuario."""
+        instance = self.get_object()
+        if instance.id == request.user.id:
+            return Response(
+                {"detail": "No puedes desactivar tu propia cuenta."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        instance.is_active = not instance.is_active
+        instance.save(update_fields=["is_active"])
         return Response(self.get_serializer(instance).data)
 
     @action(detail=False, methods=["get"])
