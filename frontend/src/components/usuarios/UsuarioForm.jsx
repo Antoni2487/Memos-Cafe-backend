@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { FormModal, InputField } from "../common";
+import { ROLES } from "../../utils/constants";
 
-const ROLES = [
-  { value: "1", label: "Admin" },
-  { value: "2", label: "Cajero" },
-  { value: "3", label: "Mesero" },
+const ROLES_OPTIONS = [
+  { value: ROLES.ADMIN,   label: "Admin" },
+  { value: ROLES.CAJERO,  label: "Cajero" },
+  { value: ROLES.MESERO,  label: "Mesero" },
 ];
 
 export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, cargando }) {
-  const [form, setForm] = useState({ name: "", email: "", password: "", group_id: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", group_name: "" });
   const [errores, setErrores] = useState({});
 
   useEffect(() => {
@@ -17,10 +18,10 @@ export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, car
         name: usuario.name || "",
         email: usuario.email,
         password: "",
-        group_id: usuario.groups?.[0]?.id?.toString() ?? "",
+        group_name: usuario.groups?.[0]?.name ?? "",
       });
     } else {
-      setForm({ name: "", email: "", password: "", group_id: "" });
+      setForm({ name: "", email: "", password: "", group_name: "" });
     }
     setErrores({});
   }, [usuario, abierto]);
@@ -38,7 +39,7 @@ export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, car
 
   const handleGuardar = () => {
     if (!validar()) return;
-    const datos = { name: form.name, email: form.email, group_id: form.group_id };
+    const datos = { name: form.name, email: form.email, group_name: form.group_name };
     if (form.password) datos.password = form.password;
     onGuardar(datos);
   };
@@ -79,10 +80,9 @@ export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, car
       />
       <InputField
         label="Rol"
-        value={form.group_id}
-        onChange={set("group_id")}
-        options={[...ROLES,
-        ]}
+        value={form.group_name}
+        onChange={set("group_name")}
+        options={ROLES_OPTIONS}
       />
     </FormModal>
   );
