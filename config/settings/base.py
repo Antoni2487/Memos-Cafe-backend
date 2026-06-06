@@ -70,6 +70,7 @@ LOCAL_APPS = [
     "memos_cafe.ordenes",
     "memos_cafe.caja",
     "memos_cafe.insumos",
+    "memos_cafe.roles",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

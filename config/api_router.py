@@ -21,6 +21,7 @@ urlpatterns = [
 
     # Users
     path("", include(router.urls)),
+    path("roles/", include("memos_cafe.roles.urls")),
 
     # Apps
     path("mesas/", include("memos_cafe.mesas.urls")),
