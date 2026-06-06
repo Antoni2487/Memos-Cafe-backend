@@ -14,11 +14,11 @@ import {
 } from "lucide-react";
 import authService from "../../services/authService";
 
-const NAV_ITEMS = [
+const getNavItems = (userRoles) => [
   {
     icon: LayoutDashboard,
-    label: "Dashboard",
-    path: "/dashboard",
+    label: "Panel",
+    path: userRoles.includes("admin") ? "/dashboard" : "/home",
     roles: null,
   },
   {
@@ -82,7 +82,7 @@ export default function Sidebar() {
   const user = authService.getUser();
 
   // Filtra los ítems según los roles del usuario
-  const visibleItems = NAV_ITEMS.filter(({ roles }) => {
+  const visibleItems = getNavItems(user.roles).filter(({ roles }) => {
     if (!roles) return true;
     return roles.some((role) => authService.hasRole(role));
   });
