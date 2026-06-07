@@ -4,10 +4,14 @@ from django.contrib import admin
 from django.urls import include
 from django.urls import path
 from django.views import defaults as default_views
+from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
 
 urlpatterns = [
+    # Home redirect — requerido por allauth
+    path("", RedirectView.as_view(url="/api/docs/", permanent=False), name="home"),
+    path("about/", RedirectView.as_view(url="/api/docs/", permanent=False), name="about"),
     # Django Admin
     path(settings.ADMIN_URL, admin.site.urls),
     # User management (allauth — para el admin panel)

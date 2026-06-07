@@ -24,6 +24,17 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class  = CustomTokenObtainPairSerializer
     throttle_classes  = [LoginRateThrottle]
 
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            return Response(
+                {"detail": "Credenciales inválidas."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
 
 class UserViewSet(
     CreateModelMixin,
@@ -34,7 +45,7 @@ class UserViewSet(
     GenericViewSet,
 ):
     serializer_class = UserSerializer
-    queryset         = User.objects.all()
+    queryset         = User.objects.all().order_by("id")
     lookup_field     = "pk"
 
     def get_permissions(self):
@@ -46,8 +57,8 @@ class UserViewSet(
         if not self.request.user.is_authenticated:
             return User.objects.none()
         if self.request.user.groups.filter(name="admin").exists():
-            return User.objects.prefetch_related("groups").all()
-        return User.objects.filter(id=self.request.user.id)
+            return User.objects.prefetch_related("groups").all().order_by("id")
+        return User.objects.filter(id=self.request.user.id).order_by("id")
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
