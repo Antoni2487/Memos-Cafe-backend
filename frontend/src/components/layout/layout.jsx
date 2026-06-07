@@ -1,15 +1,35 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
+import useApiErrors from "../../hooks/useApiErrors";
 
 export default function Layout() {
+  const { error, clearError } = useApiErrors();
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#F8F4EE" }}>
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-hidden">
         <Navbar />
+        {/* Banner global de errores API */}
+        {error && (
+          <div
+            onClick={clearError}
+            style={{
+              backgroundColor: "rgba(198,40,40,0.08)",
+              border: "1px solid rgba(198,40,40,0.25)",
+              borderRadius: "8px", padding: "10px 20px",
+              margin: "8px 16px 0",
+              cursor: "pointer",
+              fontFamily: "'Lato', sans-serif",
+              fontSize: "13px", color: "#c62828",
+              zIndex: 50,
+            }}
+          >
+            ⚠ {error} — <span style={{ textDecoration: "underline" }}>Cerrar</span>
+          </div>
+        )}
         <main className="flex-1 overflow-y-auto relative" style={{ backgroundColor: "#F8F4EE" }}>
-          {/* Botanical watermark — decoración de fondo */}
           <BotanicalWatermark />
           <div className="relative z-10 p-6">
             <Outlet />

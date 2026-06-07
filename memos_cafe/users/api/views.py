@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
 from rest_framework.mixins import UpdateModelMixin, CreateModelMixin, DestroyModelMixin
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -13,8 +14,15 @@ from memos_cafe.users.api.serializers import UserSerializer
 from memos_cafe.utils.permissions import EsAdmin, TodosAutenticados
 
 
+class LoginRateThrottle(AnonRateThrottle):
+    """Máximo 5 intentos de login por minuto por IP."""
+    rate  = "5/minute"
+    scope = "login"
+
+
 class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
+    serializer_class  = CustomTokenObtainPairSerializer
+    throttle_classes  = [LoginRateThrottle]
 
 
 class UserViewSet(
@@ -26,8 +34,8 @@ class UserViewSet(
     GenericViewSet,
 ):
     serializer_class = UserSerializer
-    queryset = User.objects.all()
-    lookup_field = "pk"
+    queryset         = User.objects.all()
+    lookup_field     = "pk"
 
     def get_permissions(self):
         if self.action in ["create", "destroy", "list", "update", "partial_update", "toggle_activo"]:
