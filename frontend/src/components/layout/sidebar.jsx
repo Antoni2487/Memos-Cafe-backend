@@ -52,6 +52,12 @@ const NAV_ITEMS = [
     roles: ["admin"],
   },
   {
+    icon: Tag,
+    label: "Categorias",
+    path: "/categorias",
+    roles: ["admin"],
+  },
+  {
     icon: Boxes,
     label: "Insumos",
     path: "/insumos",
