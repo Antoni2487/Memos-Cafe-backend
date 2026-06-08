@@ -101,11 +101,11 @@ export default function Sidebar() {
   // Iniciales del nombre para el avatar
   const initials = user.nombre
     ? user.nombre
-        .split(" ")
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
+      .split(" ")
+      .slice(0, 2)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
     : "U";
 
   return (
