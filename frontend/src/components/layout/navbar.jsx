@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { Bell } from "lucide-react";
 import authService from "../../services/authService";
+import { useReloj } from "../../hooks/useReloj";
 
 // Mapeo de ruta → título de página
 const PAGE_TITLES = {
@@ -16,42 +17,15 @@ const PAGE_TITLES = {
   "/roles": "Roles y Permisos",
 };
 
-// Formatea la fecha actual en español: "Viernes, 30 de mayo de 2026"
-function getFechaActual() {
-  return new Date().toLocaleDateString("es-PE", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-// Formatea la hora actual: "09:42 AM"
-function getHoraActual() {
-  return new Date().toLocaleTimeString("es-PE", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
 export default function Navbar() {
   const location = useLocation();
   const user = authService.getUser();
-
-  // Título dinámico según la ruta actual
   const titulo = PAGE_TITLES[location.pathname] || "Memo's Café";
-
-  // Iniciales para el chip de usuario
   const initials = user.nombre
-    ? user.nombre
-        .split(" ")
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
+    ? user.nombre.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()
     : "U";
 
+  const ahora = useReloj();
   return (
     <header
       className="flex items-center justify-between px-8 shrink-0"
@@ -88,7 +62,13 @@ export default function Navbar() {
               textTransform: "capitalize",
             }}
           >
-            {getFechaActual()}
+            {ahora.toLocaleDateString("es-PE", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+
           </p>
           <p
             style={{
@@ -98,7 +78,11 @@ export default function Navbar() {
               margin: 0,
             }}
           >
-            Lima, Perú — {getHoraActual()}
+            Lima, Perú — {ahora.toLocaleTimeString("es-PE", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            })}
           </p>
         </div>
 
