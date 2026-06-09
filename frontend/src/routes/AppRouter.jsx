@@ -15,7 +15,8 @@ import ProductosPage from "../pages/productos/ProductosPage";
 import CajaPage from "../pages/caja/CajaPage";
 import ReportesPage from "../pages/reportes/ReportesPage";
 import InsumosPage from "../pages/insumos/InsumosPage";
-import CategoriasPage from "../pages/categorias/CategoriaPage";
+import UsuariosPage from "../pages/usuarios/UsuariosPage";
+import RolesPage from "../pages/roles/RolesPage";
 
 export default function AppRouter() {
   return (
@@ -51,7 +52,8 @@ export default function AppRouter() {
             <Route path="/productos" element={<ProductosPage />} />
             <Route path="/reportes" element={<ReportesPage />} />
             <Route path="/insumos" element={<InsumosPage />} />
-            <Route path="/categorias" element={<CategoriasPage />} />
+            <Route path="/usuarios" element={<UsuariosPage />} />
+            <Route path="/roles" element={<RolesPage />} /> 
           </Route>
 
         </Route> {/* ← cierra Layout */}
