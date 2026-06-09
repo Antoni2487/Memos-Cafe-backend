@@ -18,6 +18,7 @@ import InsumosPage from "../pages/insumos/InsumosPage";
 import UsuariosPage from "../pages/usuarios/UsuariosPage";
 import RolesPage from "../pages/roles/RolesPage";
 import CategoriaPage from "../pages/categorias/CategoriaPage";
+import PromocionesPage from "../pages/promociones/PromocionesPage";
 
 export default function AppRouter() {
   return (
@@ -51,6 +52,7 @@ export default function AppRouter() {
 
           <Route element={<PrivateRoute roles={[ROLES.ADMIN]} />}>
             <Route path="/productos" element={<ProductosPage />} />
+            <Route path="/promociones" element={<PromocionesPage />} />
             <Route path="/reportes" element={<ReportesPage />} />
             <Route path="/insumos" element={<InsumosPage />} />
             <Route path="/usuarios" element={<UsuariosPage />} />
