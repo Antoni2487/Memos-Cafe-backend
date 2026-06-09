@@ -10,6 +10,23 @@ class CategoriaService:
             raise ValueError(f"Ya existe una categoría con el nombre '{nombre}'.")
         return Categoria.objects.create(nombre=nombre)
 
+
+    @staticmethod
+    def editar(categoria, nombre: str):
+        nombre = nombre.strip()
+        if not nombre:
+            raise ValueError("El nombre no puede estar vacío.")
+        if Categoria.objects.filter(nombre__iexact=nombre).exclude(pk=categoria.pk).exists():
+            raise ValueError(f"Ya existe una categoría con el nombre '{nombre}'.")
+        categoria.nombre = nombre
+        categoria.save(update_fields=["nombre"])
+        return categoria
+
+    @staticmethod
+    def activar(categoria: Categoria) -> Categoria:
+        categoria.activo = True
+        categoria.save(update_fields=["activo"])
+        return categoria
     @staticmethod
     def desactivar(categoria: Categoria) -> Categoria:
         """

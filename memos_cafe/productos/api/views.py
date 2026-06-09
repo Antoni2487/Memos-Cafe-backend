@@ -45,6 +45,24 @@ class CategoriaViewSet(
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(CategoriaSerializer(categoria).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["patch"], url_path="editar", permission_classes=[EsAdmin])
+    def editar(self, request, pk=None):
+        """PATCH /api/productos/categorias/{id}/editar/"""
+        categoria = self.get_object()
+        nombre = request.data.get("nombre", "").strip()
+        try:
+            CategoriaService.editar(categoria, nombre)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CategoriaSerializer(categoria).data)
+
+    @action(detail=True, methods=["post"], url_path="activar", permission_classes=[EsAdmin])
+    def activar(self, request, pk=None):
+        """POST /api/productos/categorias/{id}/activar/"""
+        categoria = self.get_object()
+        CategoriaService.activar(categoria)
+        return Response(CategoriaSerializer(categoria).data)
+
     @action(detail=True, methods=["post"], url_path="desactivar", permission_classes=[EsAdmin])
     def desactivar(self, request, pk=None):
         """POST /api/productos/categorias/{id}/desactivar/"""
@@ -108,6 +126,17 @@ class ProductoViewSet(
         producto = self.get_object()
         producto.desactivar()
         return Response(ProductoSerializer(producto).data)
+
+    @action(detail=True, methods=["patch"], url_path="editar", permission_classes=[EsAdmin])
+    def editar(self, request, pk=None):
+        """PATCH /api/productos/categorias/{id}/editar/"""
+        categoria = self.get_object()
+        nombre = request.data.get("nombre", "").strip()
+        try:
+            CategoriaService.editar(categoria, nombre)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(CategoriaSerializer(categoria).data)
 
     @action(detail=True, methods=["post"], url_path="activar", permission_classes=[EsAdmin])
     def activar(self, request, pk=None):
