@@ -74,7 +74,7 @@ export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, car
         type="password"
         value={form.password}
         onChange={set("password")}
-        placeholder="••••••••"
+        placeholder="***********"
         required={!usuario}
         error={errores.password}
       />

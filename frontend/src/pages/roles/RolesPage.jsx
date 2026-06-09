@@ -21,7 +21,7 @@ export default function RolesPage() {
   return (
     <>
       <PageHeader
-        titulo="Roles y Permisos"
+        titulo="Gestión de Roles y Permisos"
         descripcion="Define qué puede hacer cada rol en el sistema"
       />
 
