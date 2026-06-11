@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ClipboardList, UtensilsCrossed, Bike, ShoppingBag, Plus, Minus, Trash2, Printer, Ban } from "lucide-react";
+import { ClipboardList, UtensilsCrossed, Bike, ShoppingBag, Plus, Minus, Trash2, Printer, Ban, PenLine, X } from "lucide-react";
 import ordenesService from "../../services/ordenesService";
 import mesasService from "../../services/mesasService";
 import productosService from "../../services/productosService";
@@ -146,6 +146,12 @@ export default function OrdenesPage() {
   const [anularTarget, setAnularTarget] = useState(null);
   const [anulando, setAnulando]         = useState(false);
 
+  // Drawer editar orden
+  const [ordenEditar, setOrdenEditar]   = useState(null);
+  const [itemsEditar, setItemsEditar]   = useState([]);
+  const [agregando, setAgregando]       = useState(false);
+  const [editExito, setEditExito]       = useState("");
+
   // ── Carga inicial ────────────────────────────────────────────────────────────
   const cargarOrdenes = async () => {
     try {
@@ -180,11 +186,22 @@ export default function OrdenesPage() {
   }, []);
 
   // ── Catálogo ─────────────────────────────────────────────────────────────────
-  const categorias = ["todos", ...new Set(productos.map((p) => p.categoria_nombre).filter(Boolean))];
+  const CATEG_PROMOS = "__promociones__";
+  const categorias = [
+    "todos",
+    ...new Set(productos.map((p) => p.categoria_nombre).filter(Boolean)),
+    ...(promociones.length > 0 ? [CATEG_PROMOS] : []),
+  ];
 
   const productosFiltrados = categFiltro === "todos"
     ? productos
-    : productos.filter((p) => p.categoria_nombre === categFiltro);
+    : categFiltro === CATEG_PROMOS
+      ? []
+      : productos.filter((p) => p.categoria_nombre === categFiltro);
+
+  const promocionesFiltradas = (categFiltro === "todos" || categFiltro === CATEG_PROMOS)
+    ? promociones
+    : [];
 
   // ── Manejo de items ───────────────────────────────────────────────────────────
   const agregarItem = (item, esPromo) => {
@@ -266,10 +283,64 @@ export default function OrdenesPage() {
       const { data } = await ordenesService.anular(anularTarget.id);
       setOrdenes((prev) => prev.map((o) => o.id === data.id ? data : o));
       setAnularTarget(null);
+      // refrescar mesas para reflejar la liberación
+      const resMesas = await mesasService.listar();
+      setMesas(resMesas.data.results ?? resMesas.data);
     } catch (e) {
       alert(e.response?.data?.detail || "Error al anular");
     } finally {
       setAnulando(false);
+    }
+  };
+
+  // ── Drawer editar ───────────────────────────────────────────────────────────────
+  const abrirEditar = (orden) => {
+    setOrdenEditar(orden);
+    setItemsEditar([]);
+    setEditExito("");
+  };
+
+  const agregarItemEditar = (item, esPromo) => {
+    setItemsEditar((prev) => {
+      const key = esPromo ? `promo-${item.id}` : `prod-${item.id}`;
+      const existe = prev.find((i) => i.key === key);
+      if (existe) return prev.map((i) => i.key === key ? { ...i, cantidad: i.cantidad + 1 } : i);
+      return [...prev, { key, id: item.id, nombre: item.nombre,
+        precio: parseFloat(item.precio ?? 0), esPromo, cantidad: 1 }];
+    });
+  };
+
+  const cambiarCantidadEditar = (key, delta) => {
+    setItemsEditar((prev) => prev
+      .map((i) => i.key === key ? { ...i, cantidad: i.cantidad + delta } : i)
+      .filter((i) => i.cantidad > 0)
+    );
+  };
+
+  const handleConfirmarEditar = async () => {
+    if (!ordenEditar || itemsEditar.length === 0) return;
+    setAgregando(true);
+    try {
+      let ordenActual = ordenEditar;
+      for (const item of itemsEditar) {
+        const payload = {
+          producto:  !item.esPromo ? item.id : null,
+          promocion: item.esPromo  ? item.id : null,
+          cantidad: item.cantidad,
+          nota: "",
+        };
+        const { data } = await ordenesService.agregarDetalle(ordenActual.id, payload);
+        ordenActual = data;
+      }
+      setOrdenes((prev) => prev.map((o) => o.id === ordenActual.id ? ordenActual : o));
+      setOrdenEditar(ordenActual);
+      setItemsEditar([]);
+      setEditExito(`${itemsEditar.length} ítem(s) agregado(s)`);
+      setTimeout(() => setEditExito(""), 3000);
+    } catch (e) {
+      alert(e.response?.data?.detail || "Error al agregar ítems");
+    } finally {
+      setAgregando(false);
     }
   };
 
@@ -403,7 +474,7 @@ export default function OrdenesPage() {
                       transition: "all 0.15s",
                       textTransform: cat === "todos" ? "none" : "capitalize",
                     }}>
-                    {cat === "todos" ? "Todos" : cat}
+                    {cat === "todos" ? "Todos" : cat === CATEG_PROMOS ? "Promociones" : cat}
                   </button>
                 ))}
               </div>
@@ -419,7 +490,7 @@ export default function OrdenesPage() {
                 {productosFiltrados.map((p) => (
                   <ProductoCard key={`prod-${p.id}`} item={p} esPromo={false} onClick={agregarItem} />
                 ))}
-                {categFiltro === "todos" && promociones.map((p) => (
+                {promocionesFiltradas.map((p) => (
                   <ProductoCard key={`promo-${p.id}`} item={p} esPromo={true} onClick={agregarItem} />
                 ))}
               </div>
@@ -617,6 +688,12 @@ export default function OrdenesPage() {
                             <Printer size={13} />
                           </button>
                           <button
+                            onClick={() => abrirEditar(orden)}
+                            title="Agregar ítems"
+                            style={estilos.btnAccion(COLOR.dorado, "rgba(201,168,76,0.12)")}>
+                            <PenLine size={13} />
+                          </button>
+                          <button
                             onClick={() => setAnularTarget(orden)}
                             title="Anular orden"
                             style={estilos.btnAccion(COLOR.rojo, COLOR.rojoPal)}>
@@ -632,6 +709,132 @@ export default function OrdenesPage() {
           </table>
         )}
       </div>
+
+      {/* ── Drawer editar orden ── */}
+      {ordenEditar && (
+        <div style={{
+          position: "fixed", top: 0, right: 0, bottom: 0, width: 420,
+          background: "white", boxShadow: "-4px 0 30px rgba(0,0,0,0.12)",
+          zIndex: 1000, display: "flex", flexDirection: "column", overflowY: "auto",
+        }}>
+          {/* Header drawer */}
+          <div style={{ background: COLOR.verde, padding: "14px 18px",
+            display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: 15,
+                fontWeight: 600, color: "white", margin: 0 }}>
+                Editar Orden #{ordenEditar.id}
+              </p>
+              <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 11,
+                color: "rgba(255,255,255,0.7)", margin: "2px 0 0 0" }}>
+                Agregá ítems a la orden
+              </p>
+            </div>
+            <button onClick={() => setOrdenEditar(null)}
+              style={{ background: "rgba(255,255,255,0.15)", border: "none",
+                borderRadius: 8, padding: 6, cursor: "pointer", color: "white",
+                display: "flex", alignItems: "center" }}>
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Ítems actuales */}
+          <div style={{ padding: "14px 16px", borderBottom: `1px solid ${COLOR.borde}` }}>
+            <p style={estilos.seccionLabel}>Ítems actuales</p>
+            {ordenEditar.detalles?.length === 0 ? (
+              <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#999" }}>Sin ítems</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {ordenEditar.detalles?.map((d) => (
+                  <div key={d.id} style={{ display: "flex", justifyContent: "space-between",
+                    alignItems: "center", padding: "6px 0",
+                    borderBottom: `1px solid ${COLOR.borde}` }}>
+                    <div>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12,
+                        fontWeight: 600, color: COLOR.verde }}>
+                        {d.cantidad}× {d.producto?.nombre || d.promocion?.nombre || `Ítem #${d.id}`}
+                      </span>
+                      {d.impreso && (
+                        <span style={{ marginLeft: 6, fontSize: 10, color: "#2e7d32",
+                          fontWeight: 700 }}>✓ enviado</span>
+                      )}
+                    </div>
+                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#888" }}>
+                      S/ {parseFloat(d.subtotal || 0).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Catálogo para agregar */}
+          <div style={{ padding: "14px 16px", flex: 1 }}>
+            <p style={estilos.seccionLabel}>Agregar productos</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+              {productos.map((prod) => (
+                <ProductoCard key={`ep-${prod.id}`} item={prod} esPromo={false}
+                  onClick={agregarItemEditar} />
+              ))}
+              {promociones.map((promo) => (
+                <ProductoCard key={`epr-${promo.id}`} item={promo} esPromo={true}
+                  onClick={agregarItemEditar} />
+              ))}
+            </div>
+
+            {/* Items a agregar */}
+            {itemsEditar.length > 0 && (
+              <div style={{ background: COLOR.verdePal, borderRadius: 10,
+                padding: "12px 14px", marginTop: 8 }}>
+                <p style={{ ...estilos.seccionLabel, marginBottom: 8 }}>Por agregar</p>
+                {itemsEditar.map((item) => (
+                  <div key={item.key} style={{ display: "flex", alignItems: "center",
+                    gap: 8, marginBottom: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 12,
+                        fontWeight: 600, color: COLOR.verde, margin: 0 }}>{item.nombre}</p>
+                    </div>
+                    <button onClick={() => cambiarCantidadEditar(item.key, -1)} style={estilos.btnQty}>
+                      <Minus size={11} />
+                    </button>
+                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
+                      fontWeight: 700, color: COLOR.verde, minWidth: 18, textAlign: "center" }}>
+                      {item.cantidad}
+                    </span>
+                    <button onClick={() => cambiarCantidadEditar(item.key, 1)} style={estilos.btnQty}>
+                      <Plus size={11} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer drawer */}
+          <div style={{ padding: "14px 16px", borderTop: `1.5px solid ${COLOR.borde}` }}>
+            {editExito && (
+              <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 12,
+                color: "#2e7d32", fontWeight: 600, margin: "0 0 8px 0" }}>✓ {editExito}</p>
+            )}
+            <button onClick={handleConfirmarEditar}
+              disabled={agregando || itemsEditar.length === 0}
+              style={{
+                width: "100%", padding: 12, borderRadius: 10, border: "none",
+                background: (agregando || itemsEditar.length === 0) ? "#aaa" : COLOR.verde,
+                color: "white", fontFamily: "'Lato',sans-serif", fontSize: 14,
+                fontWeight: 700, cursor: (agregando || itemsEditar.length === 0) ? "not-allowed" : "pointer",
+              }}>
+              {agregando ? "Agregando..." : `Agregar ${itemsEditar.length > 0 ? `(${itemsEditar.reduce((s,i)=>s+i.cantidad,0)} ítems)` : "ítems"}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Overlay drawer */}
+      {ordenEditar && (
+        <div onClick={() => setOrdenEditar(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 999 }} />
+      )}
 
       {/* ── Confirm anular ── */}
       <ConfirmDialog
