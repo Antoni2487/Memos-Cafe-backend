@@ -1,3 +1,8 @@
+import logging
+import io
+from django.http import HttpResponse
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
@@ -10,6 +15,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from memos_cafe.caja.models import Caja
+
+logger = logging.getLogger("memos_cafe.reportes")
 from memos_cafe.caja.models import Pago
 from memos_cafe.mesas.models import Mesa
 from memos_cafe.ordenes.models import DetalleOrden
@@ -178,6 +185,10 @@ class ReporteVentasView(APIView):
             .order_by("-total")
         )
 
+        logger.info(
+            "Reporte ventas consultado | usuario=%s | periodo=%s/%s",
+            request.user.email, fecha_inicio, fecha_fin,
+        )
         return Response({
             "periodo": {
                 "inicio": fecha_inicio,
@@ -193,6 +204,124 @@ class ReporteVentasView(APIView):
             "ventas_por_dia": ventas_por_dia,
             "ventas_por_metodo_pago": ventas_por_metodo,
         })
+
+    def export_excel(self, request):
+        """GET /api/reportes/ventas/export/ — descarga .xlsx"""
+        fecha_inicio = request.query_params.get("fecha_inicio")
+        fecha_fin    = request.query_params.get("fecha_fin")
+
+        if not fecha_inicio or not fecha_fin:
+            from rest_framework.response import Response as R
+            return R({"detail": "fecha_inicio y fecha_fin son requeridos."}, status=400)
+
+        pagos = Pago.objects.filter(
+            estado="completado",
+            fecha__date__gte=fecha_inicio,
+            fecha__date__lte=fecha_fin,
+        )
+
+        try:
+            wb = openpyxl.Workbook()
+
+            # ── Hoja 1: Resumen ───────────────────────────────────────────────
+            ws1 = wb.active
+            ws1.title = "Resumen"
+            header_font  = Font(bold=True, color="FFFFFF")
+            header_fill  = PatternFill("solid", fgColor="2C5545")
+            center       = Alignment(horizontal="center")
+
+            ws1.append(["Reporte de Ventas", f"{fecha_inicio} al {fecha_fin}"])
+            ws1["A1"].font = Font(bold=True, size=13)
+            ws1.append([])
+
+            totales = pagos.aggregate(
+                total_ventas=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
+                total_ordenes=Count("id"),
+            )
+            tv = totales["total_ventas"]
+            to = totales["total_ordenes"]
+            ticket = round(tv / to, 2) if to > 0 else 0
+
+            ws1.append(["Total ventas", float(tv)])
+            ws1.append(["Total órdenes", to])
+            ws1.append(["Ticket promedio", float(ticket)])
+            ws1.append([])
+
+            # ── Hoja 2: Ventas por día ────────────────────────────────────────
+            ws2 = wb.create_sheet("Ventas por día")
+            headers2 = ["Fecha", "Total (S/)", "Órdenes"]
+            ws2.append(headers2)
+            for col, h in enumerate(headers2, 1):
+                cell = ws2.cell(row=1, column=col)
+                cell.font   = header_font
+                cell.fill   = header_fill
+                cell.alignment = center
+
+            ventas_por_dia = (
+                pagos.annotate(fecha=TruncDate("fecha"))
+                .values("fecha")
+                .annotate(
+                    total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
+                    ordenes=Count("id"),
+                )
+                .order_by("fecha")
+            )
+            for row in ventas_por_dia:
+                ws2.append([str(row["fecha"]), float(row["total"]), row["ordenes"]])
+
+            ws2.column_dimensions["A"].width = 14
+            ws2.column_dimensions["B"].width = 14
+            ws2.column_dimensions["C"].width = 10
+
+            # ── Hoja 3: Por método de pago ────────────────────────────────────
+            ws3 = wb.create_sheet("Por método de pago")
+            headers3 = ["Método", "Total (S/)", "Cantidad"]
+            ws3.append(headers3)
+            for col, h in enumerate(headers3, 1):
+                cell = ws3.cell(row=1, column=col)
+                cell.font   = header_font
+                cell.fill   = header_fill
+                cell.alignment = center
+
+            ventas_por_metodo = (
+                pagos.values("metodo_pago")
+                .annotate(
+                    total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
+                    cantidad=Count("id"),
+                )
+                .order_by("-total")
+            )
+            for row in ventas_por_metodo:
+                ws3.append([row["metodo_pago"], float(row["total"]), row["cantidad"]])
+
+            ws3.column_dimensions["A"].width = 16
+            ws3.column_dimensions["B"].width = 14
+            ws3.column_dimensions["C"].width = 10
+
+            # ── Serializar y responder ────────────────────────────────────────
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+
+            filename = f"reporte_ventas_{fecha_inicio}_{fecha_fin}.xlsx"
+            logger.info(
+                "Exportación Excel generada | usuario=%s | archivo=%s",
+                request.user.email, filename,
+            )
+            response = HttpResponse(
+                buffer.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+
+        except Exception as exc:
+            logger.error(
+                "Error al generar Excel de ventas | usuario=%s | error=%s",
+                request.user.email, str(exc), exc_info=True,
+            )
+            from rest_framework.response import Response as R
+            return R({"detail": "Error al generar el reporte."}, status=500)
 
 
 class ReporteProductosView(APIView):
@@ -373,3 +502,10 @@ class ReporteCajaView(APIView):
             "diferencia":           diferencia,
             "observaciones":        caja.observaciones,
         }
+
+class ReporteVentasExportView(APIView):
+    """GET /api/reportes/ventas/export/ — descarga Excel de ventas."""
+    permission_classes = [EsAdmin]
+
+    def get(self, request):
+        return ReporteVentasView().export_excel(request)
