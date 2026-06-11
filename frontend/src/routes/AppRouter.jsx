@@ -41,7 +41,7 @@ export default function AppRouter() {
             <Route path="/home" element={<HomePage />} />
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/ordenes" element={<OrdenesPage />} />
-            <Route path="/comanda" element={<ComandaPage />} />
+            <Route path="/comanda/:ordenId" element={<ComandaPage />} />
           </Route>
 
           {/* Solo admin y cajero */}
