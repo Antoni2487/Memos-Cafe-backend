@@ -20,6 +20,16 @@ export default function OrdenesPage() {
   const [error, setError]             = useState("");
   const submitRef = useRef(null);
 
+  const cargarOrdenes = async () => {
+    try {
+      setError("");
+      const { data } = await ordenesService.listar();
+      setOrdenes(data.results ?? data);
+    } catch (err) {
+      setError(err.response?.data?.detail || "Error al cargar órdenes");
+    }
+  };
+
   const cargarDatos = async () => {
     try {
       setCargando(true);
@@ -43,7 +53,7 @@ export default function OrdenesPage() {
 
   useEffect(() => {
     cargarDatos();
-    const intervalo = setInterval(cargarDatos, 5000);
+    const intervalo = setInterval(cargarOrdenes, 5000);
     return () => clearInterval(intervalo);
   }, []);
 

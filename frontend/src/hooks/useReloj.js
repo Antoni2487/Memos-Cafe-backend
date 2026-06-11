@@ -5,7 +5,6 @@ export function useReloj() {
 
     useEffect(() => {
         const intervalo = setInterval(() => {
-            console.log("useReloj tick", new Date().toLocaleTimeString());
             setAhora(new Date());
         }, 1000);
 

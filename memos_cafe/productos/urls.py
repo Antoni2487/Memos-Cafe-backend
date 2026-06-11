@@ -8,7 +8,7 @@ from memos_cafe.productos.api.views import (
 
 router = DefaultRouter()
 router.register("categorias", CategoriaViewSet, basename="categoria")
-router.register("", ProductoViewSet, basename="producto")
 router.register("promociones", PromocionViewSet, basename="promocion")
+router.register("", ProductoViewSet, basename="producto")
 
 urlpatterns = router.urls
