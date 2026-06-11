@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ordenes', '0001_initial'),
+        ('ordenes', '0002_add_delivery_fields_and_tipo_orden'),
     ]
 
     operations = [
