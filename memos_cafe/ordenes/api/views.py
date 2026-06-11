@@ -7,6 +7,7 @@ from memos_cafe.ordenes.models import Orden
 from memos_cafe.ordenes.services import DetalleOrdenService, OrdenService
 from memos_cafe.ordenes.api.serializers import (
     DetalleOrdenWriteSerializer,
+    MarcarImpresoSerializer,
     OrdenReadSerializer,
     OrdenWriteSerializer,
 )
@@ -98,11 +99,28 @@ class OrdenViewSet(
         """DELETE /api/ordenes/{id}/detalles/{detalle_id}/"""
         orden = self.get_object()
         try:
-            DetalleOrdenService.eliminar_detalle(
+            estaba_impreso = DetalleOrdenService.eliminar_detalle(
                 orden=orden,
                 detalle_id=int(detalle_id),
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        orden.refresh_from_db()
+        data = OrdenReadSerializer(orden).data
+        data["item_eliminado_impreso"] = estaba_impreso
+        return Response(data)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="marcar-impreso",
+        permission_classes=[EsAdminOMesero],
+    )
+    def marcar_impreso(self, request, pk=None):
+        """POST /api/ordenes/{id}/marcar-impreso/ — marca ítems como enviados a cocina/barra."""
+        orden = self.get_object()
+        serializer = MarcarImpresoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        DetalleOrdenService.marcar_impreso(orden, serializer.validated_data["detalle_ids"])
         orden.refresh_from_db()
         return Response(OrdenReadSerializer(orden).data)

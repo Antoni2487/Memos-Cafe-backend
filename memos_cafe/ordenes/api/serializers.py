@@ -19,6 +19,7 @@ class DetalleOrdenReadSerializer(serializers.ModelSerializer):
             "precio_unitario",
             "subtotal",
             "nota",
+            "impreso",
         ]
 
 
@@ -111,3 +112,11 @@ class OrdenWriteSerializer(serializers.Serializer):
                 {"mesa": "Debe asignar una mesa para órdenes de tipo 'mesa'."}
             )
         return data
+
+
+class MarcarImpresoSerializer(serializers.Serializer):
+    """Valida los ids de detalle a marcar como enviados a cocina/barra."""
+    detalle_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        allow_empty=False,
+    )

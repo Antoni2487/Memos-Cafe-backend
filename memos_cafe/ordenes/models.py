@@ -113,6 +113,7 @@ class DetalleOrden(models.Model):
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     nota = models.CharField(max_length=150, blank=True)
+    impreso = models.BooleanField(default=False)
 
     class Meta:
         db_table = "detalle_orden"

@@ -121,10 +121,11 @@ class DetalleOrdenService:
         )
 
     @staticmethod
-    def eliminar_detalle(orden: Orden, detalle_id: int) -> None:
+    def eliminar_detalle(orden: Orden, detalle_id: int) -> bool:
         """
-        Elimina un ítem de una orden abierta.
-        Lanza ValueError si la orden no está abierta o el ítem no existe.
+        Elimina un ítem de una orden abierta y recalcula el total.
+        Retorna True si el ítem ya había sido enviado a cocina/barra (impreso),
+        para que el caller pueda ofrecer imprimir un ticket de anulación.
         """
         if not orden.esta_abierta:
             raise ValueError(
@@ -136,5 +137,17 @@ class DetalleOrdenService:
         except DetalleOrden.DoesNotExist:
             raise ValueError(f"El ítem #{detalle_id} no existe en esta orden.")
 
+        estaba_impreso = detalle.impreso
         detalle.delete()
         orden.recalcular_total()
+        return estaba_impreso
+
+    @staticmethod
+    def marcar_impreso(orden: Orden, detalle_ids: list[int]) -> None:
+        """
+        Marca los ítems indicados como impresos (ya enviados a cocina/barra).
+        Se llama después de imprimir la comanda exitosamente.
+        """
+        if not detalle_ids:
+            return
+        orden.detalles.filter(id__in=detalle_ids).update(impreso=True)
