@@ -17,24 +17,18 @@ class OrdenService:
         tipo_orden: str,
         detalles: list[dict],
         mesa: Mesa | None = None,
+        cliente_nombre: str = "",
+        cliente_telefono: str = "",
+        direccion_entrega: str = "",
+        plataforma_delivery: str = "",
+        plataforma_otra: str = "",
     ) -> Orden:
-        """
-        Crea una orden con sus detalles en una sola transacción.
-
-        Args:
-            usuario: Usuario que crea la orden (mesero)
-            tipo_orden: 'mesa' o 'llevar'
-            detalles: lista de dicts con producto/promocion, cantidad, nota
-            mesa: instancia de Mesa (requerida si tipo_orden='mesa')
-
-        Lanza ValueError en condiciones inválidas.
-        """
         if tipo_orden == Orden.TipoOrden.MESA and not mesa:
             raise ValueError("Debe asignar una mesa para órdenes de tipo 'mesa'.")
 
-        # Fix 4 — select_for_update: bloquea la fila de la mesa en la DB
-        # antes de validar su estado, evitando que dos requests simultáneos
-        # asignen la misma mesa a dos órdenes distintas.
+        if tipo_orden == Orden.TipoOrden.DELIVERY and not plataforma_delivery:
+            raise ValueError("Debe especificar la plataforma para órdenes delivery.")
+
         if mesa:
             mesa = Mesa.objects.select_for_update().get(pk=mesa.pk)
             if mesa.estado != Mesa.Estado.LIBRE:
@@ -47,16 +41,18 @@ class OrdenService:
             usuario=usuario,
             tipo_orden=tipo_orden,
             mesa=mesa,
+            cliente_nombre=cliente_nombre,
+            cliente_telefono=cliente_telefono,
+            direccion_entrega=direccion_entrega,
+            plataforma_delivery=plataforma_delivery if tipo_orden == Orden.TipoOrden.DELIVERY else "",
+            plataforma_otra=plataforma_otra if tipo_orden == Orden.TipoOrden.DELIVERY else "",
         )
 
         if mesa:
             mesa.ocupar()
 
-        # Fix 8 — recalcular_total() fuera del loop: antes se llamaba dentro
-        # de DetalleOrden.save() → 1 SELECT + 1 UPDATE por ítem.
-        # Ahora se llama una sola vez al final → N INSERTs + 1 recálculo.
         for item in detalles:
-            DetalleOrdenService.agregar_detalle(orden=orden, **item)
+            DetalleOrdenService._crear_detalle(orden=orden, **item)
 
         orden.recalcular_total()
         orden.refresh_from_db()
@@ -65,11 +61,6 @@ class OrdenService:
     @staticmethod
     @transaction.atomic
     def anular_orden(orden: Orden) -> Orden:
-        """
-        Anula una orden. Solo el admin puede hacer esto.
-        La mesa se libera automáticamente dentro de orden.anular()
-        via Mesa.liberar() — ambas operaciones quedan en la misma transacción.
-        """
         orden.anular()
         return orden
 
@@ -78,7 +69,7 @@ class DetalleOrdenService:
     """Gestiona los ítems individuales dentro de una orden."""
 
     @staticmethod
-    def agregar_detalle(
+    def _crear_detalle(
         orden: Orden,
         cantidad: int,
         nota: str = "",
@@ -86,22 +77,11 @@ class DetalleOrdenService:
         promocion: Promocion | None = None,
     ) -> DetalleOrden:
         """
-        Agrega un ítem a una orden abierta.
-        El precio_unitario se calcula aquí — NO en DetalleOrden.save().
-        recalcular_total() debe llamarse en el service después del loop,
-        no dentro de este método, para evitar N queries redundantes.
-
-        Lanza ValueError si la orden no está abierta
-        o si no se especifica producto ni promoción.
+        Uso interno — crear_orden() lo llama dentro del loop.
+        No llama recalcular_total(); el caller lo hace una sola vez al final.
         """
-        if not orden.esta_abierta:
-            raise ValueError(
-                "No se pueden agregar ítems a una orden cerrada o anulada."
-            )
-
         if not producto and not promocion:
             raise ValueError("Debe especificar al menos un producto o una promoción.")
-
         if cantidad <= 0:
             raise ValueError("La cantidad debe ser mayor a 0.")
 
@@ -121,15 +101,37 @@ class DetalleOrdenService:
         )
 
     @staticmethod
-    def eliminar_detalle(orden: Orden, detalle_id: int) -> None:
+    @transaction.atomic
+    def agregar_detalle(
+        orden: Orden,
+        cantidad: int,
+        nota: str = "",
+        producto: Producto | None = None,
+        promocion: Promocion | None = None,
+    ) -> DetalleOrden:
         """
-        Elimina un ítem de una orden abierta.
-        Lanza ValueError si la orden no está abierta o el ítem no existe.
+        API pública — agrega un ítem a una orden ya existente.
+        Recalcula el total de la orden al finalizar.
         """
         if not orden.esta_abierta:
-            raise ValueError(
-                "No se pueden eliminar ítems de una orden cerrada o anulada."
-            )
+            raise ValueError("No se pueden agregar ítems a una orden cerrada o anulada.")
+
+        detalle = DetalleOrdenService._crear_detalle(
+            orden=orden,
+            cantidad=cantidad,
+            nota=nota,
+            producto=producto,
+            promocion=promocion,
+        )
+        orden.recalcular_total()
+        return detalle
+
+    @staticmethod
+    @transaction.atomic
+    def eliminar_detalle(orden: Orden, detalle_id: int) -> None:
+        """Elimina un ítem de una orden abierta y recalcula el total."""
+        if not orden.esta_abierta:
+            raise ValueError("No se pueden eliminar ítems de una orden cerrada o anulada.")
 
         try:
             detalle = orden.detalles.get(id=detalle_id)
