@@ -1,7 +1,9 @@
 from rest_framework import serializers
 
+from memos_cafe.mesas.models import Mesa
 from memos_cafe.ordenes.models import DetalleOrden, Orden
 from memos_cafe.productos.api.serializers import ProductoSerializer, PromocionSerializer
+from memos_cafe.productos.models import Producto, Promocion
 
 
 class DetalleOrdenReadSerializer(serializers.ModelSerializer):
@@ -19,22 +21,19 @@ class DetalleOrdenReadSerializer(serializers.ModelSerializer):
             "precio_unitario",
             "subtotal",
             "nota",
+            "impreso",
         ]
 
 
 class DetalleOrdenWriteSerializer(serializers.Serializer):
     """Valida un ítem al crear o agregar a una orden."""
     producto = serializers.PrimaryKeyRelatedField(
-        queryset=__import__(
-            "memos_cafe.productos.models", fromlist=["Producto"]
-        ).Producto.objects.filter(disponible=True),
+        queryset=Producto.objects.filter(disponible=True),
         required=False,
         allow_null=True,
     )
     promocion = serializers.PrimaryKeyRelatedField(
-        queryset=__import__(
-            "memos_cafe.productos.models", fromlist=["Promocion"]
-        ).Promocion.objects.filter(activo=True),
+        queryset=Promocion.objects.filter(activo=True),
         required=False,
         allow_null=True,
     )
@@ -80,6 +79,11 @@ class OrdenReadSerializer(serializers.ModelSerializer):
             "fecha_creacion",
             "fecha_cierre",
             "total",
+            "cliente_nombre",
+            "cliente_telefono",
+            "direccion_entrega",
+            "plataforma_delivery",
+            "plataforma_otra",
             "detalles",
         ]
 
@@ -87,14 +91,23 @@ class OrdenReadSerializer(serializers.ModelSerializer):
 class OrdenWriteSerializer(serializers.Serializer):
     """Valida datos para crear una orden con sus ítems."""
     mesa = serializers.PrimaryKeyRelatedField(
-        queryset=__import__(
-            "memos_cafe.mesas.models", fromlist=["Mesa"]
-        ).Mesa.objects.filter(activo=True),
+        queryset=Mesa.objects.filter(activo=True),
         required=False,
         allow_null=True,
     )
     tipo_orden = serializers.ChoiceField(choices=Orden.TipoOrden.choices)
     detalles = DetalleOrdenWriteSerializer(many=True)
+
+    # Campos delivery (opcionales según tipo_orden)
+    cliente_nombre = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    cliente_telefono = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
+    direccion_entrega = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    plataforma_delivery = serializers.ChoiceField(
+        choices=Orden.PlataformaDelivery.choices,
+        required=False,
+        allow_null=True,
+    )
+    plataforma_otra = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
 
     def validate_detalles(self, value):
         if not value:
@@ -106,8 +119,27 @@ class OrdenWriteSerializer(serializers.Serializer):
     def validate(self, data):
         tipo_orden = data.get("tipo_orden")
         mesa = data.get("mesa")
+
         if tipo_orden == Orden.TipoOrden.MESA and not mesa:
             raise serializers.ValidationError(
                 {"mesa": "Debe asignar una mesa para órdenes de tipo 'mesa'."}
             )
+        if tipo_orden == Orden.TipoOrden.DELIVERY:
+            if not data.get("plataforma_delivery"):
+                raise serializers.ValidationError(
+                    {"plataforma_delivery": "Debe especificar la plataforma para órdenes delivery."}
+                )
+            plataforma = data.get("plataforma_delivery")
+            if plataforma == Orden.PlataformaDelivery.OTRO and not data.get("plataforma_otra"):
+                raise serializers.ValidationError(
+                    {"plataforma_otra": "Debe especificar el nombre de la plataforma."}
+                )
         return data
+
+
+class MarcarImpresoSerializer(serializers.Serializer):
+    """Valida los ids de detalle a marcar como enviados a cocina/barra."""
+    detalle_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        allow_empty=False,
+    )

@@ -7,6 +7,7 @@ from memos_cafe.ordenes.models import Orden
 from memos_cafe.ordenes.services import DetalleOrdenService, OrdenService
 from memos_cafe.ordenes.api.serializers import (
     DetalleOrdenWriteSerializer,
+    MarcarImpresoSerializer,
     OrdenReadSerializer,
     OrdenWriteSerializer,
 )
@@ -21,15 +22,26 @@ class OrdenViewSet(
     """
     Gestión de órdenes.
     El ViewSet solo maneja HTTP — delega lógica a OrdenService.
+
+    Permisos:
+      list / retrieve      → todos los autenticados
+      crear / detalles     → admin o mesero
+      anular               → solo admin
     """
 
     def get_queryset(self):
         user = self.request.user
-        # Mesero solo ve sus propias órdenes abiertas
+        qs = Orden.objects.con_detalles()
+
+        # Mesero: solo sus órdenes abiertas
         if user.groups.filter(name="mesero").exists():
-            return Orden.objects.abiertas_por_usuario(user)
-        # Cajero y admin ven todas las abiertas
-        return Orden.objects.abiertas()
+            return qs.filter(estado=Orden.Estado.ABIERTA, usuario=user)
+
+        # Cajero y admin: todas las abiertas + cerradas del día de hoy
+        # (necesario para historial de cobros y reportes de turno)
+        from django.utils import timezone
+        hoy = timezone.localdate()
+        return qs.filter(fecha_creacion__date=hoy)
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
@@ -46,12 +58,18 @@ class OrdenViewSet(
         """POST /api/ordenes/crear/ — crea una orden con sus ítems."""
         serializer = OrdenWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
         try:
             orden = OrdenService.crear_orden(
                 usuario=request.user,
-                tipo_orden=serializer.validated_data["tipo_orden"],
-                mesa=serializer.validated_data.get("mesa"),
-                detalles=serializer.validated_data["detalles"],
+                tipo_orden=data["tipo_orden"],
+                mesa=data.get("mesa"),
+                detalles=data["detalles"],
+                cliente_nombre=data.get("cliente_nombre", ""),
+                cliente_telefono=data.get("cliente_telefono", ""),
+                direccion_entrega=data.get("direccion_entrega", ""),
+                plataforma_delivery=data.get("plataforma_delivery") or "",
+                plataforma_otra=data.get("plataforma_otra", ""),
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -65,6 +83,7 @@ class OrdenViewSet(
             OrdenService.anular_orden(orden)
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        orden.refresh_from_db()  # Fix 5: asegurar estado actualizado antes de serializar
         return Response(OrdenReadSerializer(orden).data)
 
     @action(
@@ -79,10 +98,7 @@ class OrdenViewSet(
         serializer = DetalleOrdenWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            DetalleOrdenService.agregar_detalle(
-                orden=orden,
-                **serializer.validated_data,
-            )
+            DetalleOrdenService.agregar_detalle(orden=orden, **serializer.validated_data)
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         orden.refresh_from_db()
@@ -91,18 +107,35 @@ class OrdenViewSet(
     @action(
         detail=True,
         methods=["delete"],
-        url_path=r"detalles/(?P<detalle_id>\d+)",
+        url_path="detalles/(?P<detalle_id>[0-9]+)",
         permission_classes=[EsAdminOMesero],
     )
     def eliminar_detalle(self, request, pk=None, detalle_id=None):
         """DELETE /api/ordenes/{id}/detalles/{detalle_id}/"""
         orden = self.get_object()
         try:
-            DetalleOrdenService.eliminar_detalle(
+            estaba_impreso = DetalleOrdenService.eliminar_detalle(
                 orden=orden,
                 detalle_id=int(detalle_id),
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        orden.refresh_from_db()
+        data = OrdenReadSerializer(orden).data
+        data["item_eliminado_impreso"] = estaba_impreso
+        return Response(data)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="marcar-impreso",
+        permission_classes=[EsAdminOMesero],
+    )
+    def marcar_impreso(self, request, pk=None):
+        """POST /api/ordenes/{id}/marcar-impreso/ — marca ítems como enviados a cocina/barra."""
+        orden = self.get_object()
+        serializer = MarcarImpresoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        DetalleOrdenService.marcar_impreso(orden, serializer.validated_data["detalle_ids"])
         orden.refresh_from_db()
         return Response(OrdenReadSerializer(orden).data)

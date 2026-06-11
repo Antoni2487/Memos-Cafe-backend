@@ -13,8 +13,15 @@ class Orden(models.Model):
         ANULADA = "anulada", "Anulada"
 
     class TipoOrden(models.TextChoices):
-        MESA = "mesa", "Mesa"
-        LLEVAR = "llevar", "Para llevar"
+        MESA    = "mesa",     "Mesa"
+        LLEVAR  = "llevar",   "Para llevar"
+        DELIVERY = "delivery", "Delivery"
+
+    class PlataformaDelivery(models.TextChoices):
+        RAPPI      = "rappi",      "Rappi"
+        PEDIDOS_YA = "pedidos_ya", "PedidosYa"
+        DIDI       = "didi",       "DiDi Food"
+        OTRO       = "otro",       "Otro"
 
     mesa = models.ForeignKey(
         Mesa,
@@ -39,19 +46,30 @@ class Orden(models.Model):
         default=TipoOrden.MESA,
     )
     fecha_creacion = models.DateTimeField(auto_now_add=True)
-    fecha_cierre = models.DateTimeField(null=True, blank=True)
-    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    fecha_cierre   = models.DateTimeField(null=True, blank=True)
+    total          = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # --- Campos delivery ---
+    cliente_nombre     = models.CharField(max_length=150, blank=True)
+    cliente_telefono   = models.CharField(max_length=20,  blank=True)
+    direccion_entrega  = models.CharField(max_length=255, blank=True)
+    plataforma_delivery = models.CharField(
+        max_length=15,
+        choices=PlataformaDelivery.choices,
+        blank=True,
+    )
+    plataforma_otra    = models.CharField(max_length=100, blank=True)
 
     objects = OrdenManager()
 
     class Meta:
-        db_table = "orden"
-        verbose_name = "Orden"
+        db_table         = "orden"
+        verbose_name     = "Orden"
         verbose_name_plural = "Órdenes"
-        ordering = ["-fecha_creacion"]
+        ordering         = ["-fecha_creacion"]
 
     def __str__(self):
-        return f"Orden #{self.id} - Mesa {self.mesa_id} ({self.estado})"
+        return f"Orden #{self.id} - {self.tipo_orden} ({self.estado})"
 
     # --- Comportamiento del objeto ---
 
@@ -66,7 +84,7 @@ class Orden(models.Model):
         from django.utils import timezone
         if self.estado != self.Estado.ABIERTA:
             raise ValueError("Solo se pueden cerrar órdenes abiertas.")
-        self.estado = self.Estado.CERRADA
+        self.estado      = self.Estado.CERRADA
         self.fecha_cierre = timezone.now()
         self.save(update_fields=["estado", "fecha_cierre"])
         if self.mesa_id:
@@ -76,12 +94,12 @@ class Orden(models.Model):
         from django.utils import timezone
         if self.estado == self.Estado.ANULADA:
             raise ValueError("Esta orden ya está anulada.")
-        self.estado = self.Estado.ANULADA
+        # Guardar antes del save — después self.estado ya cambió
+        estaba_abierta = self.estado == self.Estado.ABIERTA
+        self.estado      = self.Estado.ANULADA
         self.fecha_cierre = timezone.now()
         self.save(update_fields=["estado", "fecha_cierre"])
-        # Solo liberar la mesa si la orden estaba abierta (no cerrada).
-        # Si estaba cerrada, la mesa ya fue liberada al cobrar.
-        if self.mesa_id and self.estado == self.Estado.ABIERTA:
+        if self.mesa_id and estaba_abierta:
             self.mesa.liberar()
 
     @property
@@ -90,33 +108,24 @@ class Orden(models.Model):
 
 
 class DetalleOrden(models.Model):
-    orden = models.ForeignKey(
-        Orden,
-        on_delete=models.CASCADE,
-        related_name="detalles",
-    )
+    orden    = models.ForeignKey(Orden, on_delete=models.CASCADE, related_name="detalles")
     producto = models.ForeignKey(
-        Producto,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="detalles_orden",
+        Producto, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="detalles_orden",
     )
     promocion = models.ForeignKey(
-        Promocion,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="detalles_orden",
+        Promocion, on_delete=models.PROTECT,
+        null=True, blank=True, related_name="detalles_orden",
     )
-    cantidad = models.SmallIntegerField()
+    cantidad        = models.SmallIntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2)
-    nota = models.CharField(max_length=150, blank=True)
+    subtotal        = models.DecimalField(max_digits=10, decimal_places=2)
+    nota            = models.CharField(max_length=150, blank=True)
+    impreso         = models.BooleanField(default=False)
 
     class Meta:
-        db_table = "detalle_orden"
-        verbose_name = "Detalle de orden"
+        db_table         = "detalle_orden"
+        verbose_name     = "Detalle de orden"
         verbose_name_plural = "Detalles de orden"
         constraints = [
             models.CheckConstraint(
@@ -139,4 +148,3 @@ class DetalleOrden(models.Model):
     def save(self, *args, **kwargs):
         self.subtotal = self.precio_unitario * self.cantidad
         super().save(*args, **kwargs)
-        

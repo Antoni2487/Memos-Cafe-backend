@@ -23,6 +23,15 @@ export const ESTADO_ORDEN = {
 export const TIPO_ORDEN = {
   MESA: "mesa",
   LLEVAR: "llevar",
+  DELIVERY: "delivery",
+};
+
+// Plataformas de delivery
+export const PLATAFORMA_DELIVERY = {
+  RAPPI: "rappi",
+  PEDIDOS_YA: "pedidos_ya",
+  DIDI: "didi",
+  OTRO: "otro",
 };
 
 // Métodos de pago
