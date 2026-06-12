@@ -1,4 +1,7 @@
+import logging
 from decimal import Decimal
+
+logger = logging.getLogger("memos_cafe.ordenes")
 
 from django.db import transaction
 
@@ -56,11 +59,19 @@ class OrdenService:
 
         orden.recalcular_total()
         orden.refresh_from_db()
+        logger.info(
+            "Orden #%s creada por usuario %s | tipo=%s | total=%s",
+            orden.id, usuario, tipo_orden, orden.total,
+        )
         return orden
 
     @staticmethod
     @transaction.atomic
     def anular_orden(orden: Orden) -> Orden:
+        logger.warning(
+            "Orden #%s ANULADA | mesa=%s | total=%s",
+            orden.id, orden.mesa_id, orden.total,
+        )
         orden.anular()
         return orden
 
@@ -143,6 +154,11 @@ class DetalleOrdenService:
             raise ValueError(f"El ítem #{detalle_id} no existe en esta orden.")
 
         estaba_impreso = detalle.impreso
+        if estaba_impreso:
+            logger.warning(
+                "Detalle #%s eliminado de Orden #%s pero ya estaba impreso",
+                detalle_id, orden.id,
+            )
         detalle.delete()
         orden.recalcular_total()
         return estaba_impreso

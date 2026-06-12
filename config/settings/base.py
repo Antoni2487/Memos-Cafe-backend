@@ -188,22 +188,71 @@ DJANGO_ADMIN_FORCE_ALLAUTH = env.bool("DJANGO_ADMIN_FORCE_ALLAUTH", default=Fals
 
 # LOGGING
 # ------------------------------------------------------------------------------
+# Equivalente a Logback en Java:
+#   ConsoleAppender   -> handler "console"        (StreamHandler)
+#   RollingFileAppender -> handler "archivo"      (RotatingFileHandler)
+#   Logger por nombre -> loggers por modulo
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s",
+            "format": "%(asctime)s [%(levelname)s] %(name)s %(process)d %(thread)d - %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+        "simple": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
         },
     },
     "handlers": {
         "console": {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "archivo": {
+            "level": "INFO",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(BASE_DIR / "logs" / "memos_cafe.log"),
+            "maxBytes": 1024 * 1024 * 5,
+            "backupCount": 5,
             "formatter": "verbose",
+            "encoding": "utf-8",
+        },
+        "archivo_errores": {
+            "level": "ERROR",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(BASE_DIR / "logs" / "errores.log"),
+            "maxBytes": 1024 * 1024 * 5,
+            "backupCount": 3,
+            "formatter": "verbose",
+            "encoding": "utf-8",
         },
     },
     "root": {"level": "INFO", "handlers": ["console"]},
+    "loggers": {
+        "memos_cafe.ordenes": {
+            "handlers": ["console", "archivo", "archivo_errores"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "memos_cafe.productos": {
+            "handlers": ["console", "archivo"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "memos_cafe.reportes": {
+            "handlers": ["console", "archivo"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["archivo_errores"],
+            "level": "ERROR",
+            "propagate": True,
+        },
+    },
 }
 
 REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
