@@ -1,7 +1,8 @@
 volumes:
   memos_cafe_local_postgres_data: {}
   memos_cafe_local_postgres_data_backups: {}
-  
+  memos_cafe_local_venv: {}
+
 
 services:
   django:
@@ -13,8 +14,8 @@ services:
     depends_on:
       - postgres
     volumes:
-      - /app/.venv
-      - .:/app:z
+      - memos_cafe_local_venv:/app/.venv   
+      - .:/app:z                           
     env_file:
       - ./.envs/.local/.django
       - ./.envs/.local/.postgres
