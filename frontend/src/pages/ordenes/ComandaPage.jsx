@@ -56,6 +56,14 @@ export default function ComandaPage() {
   const esDelivery = orden.tipo_orden === "delivery";
   const esMesa     = orden.tipo_orden === "mesa";
 
+  const handleCerrar = () => {
+    if (window.opener) {
+      window.close();
+    } else {
+      window.location.href = "/ordenes";
+    }
+  };
+
   return (
     <div style={estilos.pagina}>
 
@@ -71,6 +79,9 @@ export default function ComandaPage() {
           }}
         >
           {imprimiendo ? "Registrando..." : yaImpreso ? "✓ Impreso" : "🖨 Imprimir comanda"}
+        </button>
+        <button onClick={handleCerrar} style={estilos.botonVolver}>
+          ← Volver a órdenes
         </button>
         {itemsPendientes.length === 0 && (
           <p style={estilos.avisoTodo}>Todos los ítems ya fueron enviados a cocina.</p>
@@ -182,6 +193,7 @@ const estilos = {
   centrado:        { textAlign: "center", padding: "40px", fontFamily: "'Lato', sans-serif", fontSize: "14px", color: "#666" },
   accionesPrint:   { marginBottom: "20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", "@media print": { display: "none" } },
   botonImprimir:   { padding: "12px 24px", borderRadius: "8px", border: "none", backgroundColor: "#2C5545", color: "white", fontFamily: "'Lato', sans-serif", fontSize: "14px", fontWeight: 700 },
+  botonVolver:     { padding: "8px 18px", borderRadius: "8px", border: "1px solid rgba(44,85,69,0.25)", backgroundColor: "transparent", color: "#2C5545", fontFamily: "'Lato', sans-serif", fontSize: "13px", fontWeight: 600, cursor: "pointer" },
   avisoTodo:       { fontFamily: "'Lato', sans-serif", fontSize: "12px", color: "#888", margin: 0 },
   comanda:         { border: "1px dashed #ccc", padding: "20px", borderRadius: "4px" },
   encabezado:      { textAlign: "center" },

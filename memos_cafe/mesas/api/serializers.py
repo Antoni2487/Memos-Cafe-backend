@@ -1,4 +1,4 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
 
 from memos_cafe.mesas.models import Mesa
 
@@ -19,13 +19,7 @@ class MesaSerializer(serializers.ModelSerializer):
             "activo",
             "fecha_baja",
         ]
-        read_only_fields = ["estado", "fecha_baja"]
-
-
-class MesaWriteSerializer(serializers.Serializer):
-    """Valida datos para crear o actualizar una mesa."""
-    numero = serializers.IntegerField(min_value=1)
-    capacidad = serializers.IntegerField(min_value=1)
+        read_only_fields = ["estado", "activo", "fecha_baja"]
 
 
 class MesaEstadoSerializer(serializers.Serializer):

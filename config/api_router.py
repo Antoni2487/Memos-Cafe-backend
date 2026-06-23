@@ -7,6 +7,7 @@ from memos_cafe.reportes.views import (
     ReporteCajaView,
     ReporteProductosView,
     ReporteVentasView,
+    ReporteVentasExportView,
 )
 from memos_cafe.users.api.views import CustomTokenObtainPairView, UserViewSet
 
@@ -33,6 +34,7 @@ urlpatterns = [
     # Reportes y Dashboard
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("reportes/ventas/", ReporteVentasView.as_view(), name="reporte-ventas"),
+    path("reportes/ventas/export/", ReporteVentasExportView.as_view(), name="reporte-ventas-export"),
     path("reportes/productos/", ReporteProductosView.as_view(), name="reporte-productos"),
     path("reportes/caja/", ReporteCajaView.as_view(), name="reporte-caja"),
 ]
