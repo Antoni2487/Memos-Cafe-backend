@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+from django.utils import timezone
+
 from memos_cafe.productos.models import Categoria, Producto, Promocion
 
 
@@ -9,7 +11,6 @@ class CategoriaService:
         if Categoria.objects.filter(nombre__iexact=nombre).exists():
             raise ValueError(f"Ya existe una categoría con el nombre '{nombre}'.")
         return Categoria.objects.create(nombre=nombre)
-
 
     @staticmethod
     def editar(categoria, nombre: str):
@@ -27,6 +28,7 @@ class CategoriaService:
         categoria.activo = True
         categoria.save(update_fields=["activo"])
         return categoria
+
     @staticmethod
     def desactivar(categoria: Categoria) -> Categoria:
         """
@@ -83,6 +85,10 @@ class PromocionService:
     ) -> Promocion:
         if precio <= 0:
             raise ValueError("El precio debe ser mayor a 0.")
+        if fecha_inicio < timezone.localdate():
+            raise ValueError(
+                "No se pueden crear promociones con fecha de inicio en el pasado."
+            )
         if fecha_fin < fecha_inicio:
             raise ValueError(
                 "La fecha de fin no puede ser anterior a la de inicio."
@@ -95,6 +101,7 @@ class PromocionService:
             descripcion=descripcion,
             imagen_url=imagen_url,
         )
+
     @staticmethod
     def editar(promocion: Promocion, **kwargs) -> Promocion:
         precio = kwargs.get("precio")

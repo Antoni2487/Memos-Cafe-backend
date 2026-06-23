@@ -10,6 +10,8 @@ export default function InputField({
   disabled = false,
   options,
   rows,
+  min,
+  max,
 }) {
   const baseStyle = {
     width: "100%",
@@ -81,6 +83,8 @@ export default function InputField({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
+          min={min}
+          max={max}
           style={baseStyle}
           onFocus={(e) => { if (!error) e.target.style.borderColor = "#2C5545"; }}
           onBlur={(e) => { if (!error) e.target.style.borderColor = "rgba(44,85,69,0.2)"; }}

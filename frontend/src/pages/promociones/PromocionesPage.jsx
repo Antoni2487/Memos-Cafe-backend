@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Pencil, ToggleLeft, ToggleRight, Plus } from "lucide-react";
+import { Eye, Pencil, ToggleLeft, ToggleRight, Plus } from "lucide-react";
 import usePromociones from "../../hooks/usePromociones";
 import PromocionForm from "../../components/promociones/PromocionForm";
 import promocionService from "../../services/promocionService";
 import {
   PageHeader, DataTable, StatusBadge,
-  SearchBar, ConfirmDialog,
+  SearchBar, ConfirmDialog, DetailModal,
 } from "../../components/common";
 
 const POR_PAGINA = 10;
+
+const fmtFecha = (f) =>
+  new Date(f + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
 
 export default function PromocionesPage() {
   const { promociones, cargando, recargar } = usePromociones();
@@ -17,6 +20,7 @@ export default function PromocionesPage() {
   const [showForm, setShowForm]             = useState(false);
   const [promoEditar, setPromoEditar]       = useState(null);
   const [promoToggle, setPromoToggle]       = useState(null);
+  const [promoVer, setPromoVer]             = useState(null);
   const [guardando, setGuardando]           = useState(false);
   const [toggling, setToggling]             = useState(false);
 
@@ -99,9 +103,7 @@ export default function PromocionesPage() {
       render: (p) => (
         <div>
           <p style={{ margin: 0, fontFamily: "'Lato', sans-serif", fontSize: 12, color: "#555" }}>
-            {new Date(p.fecha_inicio + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
-            {" — "}
-            {new Date(p.fecha_fin + "T00:00:00").toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
+            {fmtFecha(p.fecha_inicio)} — {fmtFecha(p.fecha_fin)}
           </p>
           {p.vigente && (
             <span style={{ fontSize: 10, fontFamily: "'Lato', sans-serif",
@@ -119,9 +121,17 @@ export default function PromocionesPage() {
     },
     {
       label: "Acciones",
-      width: "90px",
+      width: "120px",
       render: (p) => (
         <div className="flex items-center gap-1">
+          <button onClick={() => setPromoVer(p)} title="Ver detalle"
+            style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(44,85,69,0.2)",
+              backgroundColor: "white", cursor: "pointer", display: "flex",
+              alignItems: "center", justifyContent: "center", color: "#2C5545" }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(44,85,69,0.08)"}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "white"}>
+            <Eye size={13} strokeWidth={2} />
+          </button>
           <button onClick={() => { setPromoEditar(p); setShowForm(true); }} title="Editar"
             style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid rgba(44,85,69,0.2)",
               backgroundColor: "white", cursor: "pointer", display: "flex",
@@ -191,6 +201,57 @@ export default function PromocionesPage() {
         onConfirmar={handleToggle}
         onCancelar={() => setPromoToggle(null)}
       />
+      <DetailModal
+        abierto={!!promoVer}
+        titulo={promoVer?.nombre}
+        onCerrar={() => setPromoVer(null)}
+      >
+        {promoVer && (
+          <>
+            {promoVer.imagen_url && (
+              <img src={promoVer.imagen_url} alt={promoVer.nombre}
+                style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 8,
+                  border: "1px solid rgba(44,85,69,0.15)" }} />
+            )}
+            {promoVer.descripcion && (
+              <p style={{ margin: 0, fontFamily: "'Lato', sans-serif", fontSize: 13.5, color: "#555" }}>
+                {promoVer.descripcion}
+              </p>
+            )}
+            <div className="flex items-center justify-between">
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 11, fontWeight: 700,
+                color: "rgba(44,85,69,0.6)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                Precio
+              </span>
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 16, fontWeight: 700, color: "#2C5545" }}>
+                S/ {Number(promoVer.precio).toFixed(2)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 11, fontWeight: 700,
+                color: "rgba(44,85,69,0.6)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                Vigencia
+              </span>
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 13, color: "#333" }}>
+                {fmtFecha(promoVer.fecha_inicio)} — {fmtFecha(promoVer.fecha_fin)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 11, fontWeight: 700,
+                color: "rgba(44,85,69,0.6)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                Estado
+              </span>
+              <StatusBadge estado={promoVer.activo ? "activo" : "inactivo"} />
+            </div>
+            {promoVer.vigente && (
+              <span style={{ fontSize: 11, fontFamily: "'Lato', sans-serif",
+                color: "#2e7d32", fontWeight: 700, letterSpacing: "0.04em" }}>
+                ● ACTUALMENTE VIGENTE
+              </span>
+            )}
+          </>
+        )}
+      </DetailModal>
     </>
   );
 }

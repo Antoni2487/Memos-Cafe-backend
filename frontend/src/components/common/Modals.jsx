@@ -208,3 +208,41 @@ export function FormModal({
     </ModalBase>
   );
 }
+export function DetailModal({ abierto, titulo, onCerrar, maxWidth = "480px", children }) {
+  if (!abierto) return null;
+
+  return (
+    <ModalBase onClose={onCerrar} maxWidth={maxWidth}>
+      <div
+        className="flex items-center justify-between px-6 py-4"
+        style={{ borderBottom: "1px solid rgba(44,85,69,0.1)" }}
+      >
+        <h3
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: "17px", fontWeight: 600,
+            color: "#2C5545", margin: 0,
+          }}
+        >
+          {titulo}
+        </h3>
+        <button
+          onClick={onCerrar}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "#999", padding: "4px", borderRadius: "6px",
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="px-6 py-5 flex flex-col gap-3">
+        {children}
+      </div>
+    </ModalBase>
+  );
+}
