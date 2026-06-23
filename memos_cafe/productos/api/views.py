@@ -174,3 +174,29 @@ class PromocionViewSet(
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(PromocionSerializer(promocion).data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=["patch"], url_path="editar", permission_classes=[EsAdmin])
+    def editar(self, request, pk=None):
+        """PATCH /api/productos/promociones/{id}/editar/"""
+        promocion = self.get_object()
+        serializer = PromocionWriteSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        try:
+            promocion = PromocionService.editar(promocion, **serializer.validated_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PromocionSerializer(promocion).data)
+
+    @action(detail=True, methods=["post"], url_path="activar", permission_classes=[EsAdmin])
+    def activar(self, request, pk=None):
+        """POST /api/productos/promociones/{id}/activar/"""
+        promocion = self.get_object()
+        PromocionService.activar(promocion)
+        return Response(PromocionSerializer(promocion).data)
+
+    @action(detail=True, methods=["post"], url_path="desactivar", permission_classes=[EsAdmin])
+    def desactivar(self, request, pk=None):
+        """POST /api/productos/promociones/{id}/desactivar/"""
+        promocion = self.get_object()
+        PromocionService.desactivar(promocion)
+        return Response(PromocionSerializer(promocion).data)

@@ -95,3 +95,28 @@ class PromocionService:
             descripcion=descripcion,
             imagen_url=imagen_url,
         )
+    @staticmethod
+    def editar(promocion: Promocion, **kwargs) -> Promocion:
+        precio = kwargs.get("precio")
+        if precio is not None and precio <= 0:
+            raise ValueError("El precio debe ser mayor a 0.")
+        fecha_inicio = kwargs.get("fecha_inicio", promocion.fecha_inicio)
+        fecha_fin = kwargs.get("fecha_fin", promocion.fecha_fin)
+        if fecha_fin < fecha_inicio:
+            raise ValueError("La fecha de fin no puede ser anterior a la de inicio.")
+        for campo, valor in kwargs.items():
+            setattr(promocion, campo, valor)
+        promocion.save()
+        return promocion
+
+    @staticmethod
+    def activar(promocion: Promocion) -> Promocion:
+        promocion.activo = True
+        promocion.save(update_fields=["activo"])
+        return promocion
+
+    @staticmethod
+    def desactivar(promocion: Promocion) -> Promocion:
+        promocion.activo = False
+        promocion.save(update_fields=["activo"])
+        return promocion
