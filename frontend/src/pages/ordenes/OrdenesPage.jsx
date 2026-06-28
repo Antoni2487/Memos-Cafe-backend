@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ClipboardList, UtensilsCrossed, Bike, ShoppingBag, Plus, Minus, Trash2, Printer, Ban, PenLine, X, Eye } from "lucide-react";
 import ordenesService from "../../services/ordenesService";
 import mesasService from "../../services/mesasService";
-import productosService from "../../services/productosService";
+import productoService from "../../services/productoService";
 import { TIPO_ORDEN, PLATAFORMA_DELIVERY } from "../../utils/constants";
 import { formatDateTime } from "../../utils/formatters";
 import StatusBadge from "../../components/common/StatusBadge";
@@ -168,8 +168,8 @@ export default function OrdenesPage() {
         const [resO, resM, resP, resPr] = await Promise.all([
           ordenesService.listar(),
           mesasService.listar(),
-          productosService.listar(),
-          productosService.listarPromociones(),
+          productoService.listar(),
+          productoService.listarPromociones(),
         ]);
         setOrdenes(resO.data.results   ?? resO.data);
         setMesas(resM.data.results     ?? resM.data);

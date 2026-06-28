@@ -1,12 +1,12 @@
 import api from "./api";
 
-const promocionService = {
-  getAll:     ()         => api.get("/productos/promociones/"),
-  getById:    (id)       => api.get(`/productos/promociones/${id}/`),
-  crear:      (data)     => api.post("/productos/promociones/crear/", toFormData(data)),
-  editar:     (id, data) => api.patch(`/productos/promociones/${id}/editar/`, toFormData(data)),
-  activar:    (id)       => api.post(`/productos/promociones/${id}/activar/`),
-  desactivar: (id)       => api.post(`/productos/promociones/${id}/desactivar/`),
+const productoService = {
+  listar: () => api.get("/productos/"),
+  listarPromociones: () => api.get("/productos/promociones/"),
+  crear: (data) => api.post("/productos/crear/", toFormData(data)),
+  editar: (id, data) => api.patch(`/productos/${id}/editar/`, toFormData(data)),
+  activar: (id) => api.post(`/productos/${id}/activar/`),
+  desactivar: (id) => api.post(`/productos/${id}/desactivar/`),
 };
 
 /**
@@ -27,4 +27,4 @@ function toFormData(data) {
   return fd;
 }
 
-export default promocionService;
+export default productoService;

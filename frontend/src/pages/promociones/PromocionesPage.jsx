@@ -61,8 +61,8 @@ export default function PromocionesPage() {
       label: "Promoción",
       render: (p) => (
         <div className="flex items-center gap-3">
-          {p.imagen_url ? (
-            <img src={p.imagen_url} alt={p.nombre}
+          {p.imagen ? (
+            <img src={p.imagen} alt={p.nombre}
               style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover",
                 border: "1px solid rgba(44,85,69,0.15)" }} />
           ) : (
@@ -208,8 +208,8 @@ export default function PromocionesPage() {
       >
         {promoVer && (
           <>
-            {promoVer.imagen_url && (
-              <img src={promoVer.imagen_url} alt={promoVer.nombre}
+            {promoVer.imagen && (
+              <img src={promoVer.imagen} alt={promoVer.nombre}
                 style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 8,
                   border: "1px solid rgba(44,85,69,0.15)" }} />
             )}
