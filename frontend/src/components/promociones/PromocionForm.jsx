@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { FormModal, InputField } from "../common";
+import { FormModal, InputField, ImageUpload } from "../common";
 
 export default function PromocionForm({ abierto, promocion, onGuardar, onCerrar, cargando }) {
   const hoy = new Date().toISOString().split("T")[0];
   const [form, setForm] = useState({
     nombre: "", descripcion: "", precio: "",
-    imagen_url: "", fecha_inicio: hoy, fecha_fin: "",
+    fecha_inicio: hoy, fecha_fin: "",
   });
+  const [imagenFile, setImagenFile] = useState(null);
   const [errores, setErrores] = useState({});
 
   useEffect(() => {
@@ -15,23 +16,18 @@ export default function PromocionForm({ abierto, promocion, onGuardar, onCerrar,
         nombre:       promocion.nombre       || "",
         descripcion:  promocion.descripcion  || "",
         precio:       promocion.precio       || "",
-        imagen_url:   promocion.imagen_url   || "",
         fecha_inicio: promocion.fecha_inicio || hoy,
         fecha_fin:    promocion.fecha_fin    || "",
       });
     } else {
-      setForm({ nombre: "", descripcion: "", precio: "", imagen_url: "", fecha_inicio: hoy, fecha_fin: "" });
+      setForm({ nombre: "", descripcion: "", precio: "", fecha_inicio: hoy, fecha_fin: "" });
     }
+    setImagenFile(null);
     setErrores({});
   }, [promocion, abierto]);
 
   const set = (campo) => (val) => setForm((f) => ({ ...f, [campo]: val }));
 
-  // Fecha mínima seleccionable para fecha_inicio en el calendario:
-  // - Al crear: hoy.
-  // - Al editar: si la promo ya empezó (fecha_inicio original es pasada),
-  //   el calendario no permite ir más atrás de hoy, pero el valor original
-  //   pasado se mantiene visible/válido si no se toca.
   const minFechaInicio = hoy;
 
   const validar = () => {
@@ -43,9 +39,6 @@ export default function PromocionForm({ abierto, promocion, onGuardar, onCerrar,
     if (!form.fecha_inicio) {
       e.fecha_inicio = "La fecha de inicio es obligatoria";
     } else if (form.fecha_inicio < hoy) {
-      // Se permite que quede en el pasado SOLO si es exactamente la fecha
-      // original con la que ya venía la promoción (no se tocó). Si el
-      // usuario la cambió a otra fecha pasada distinta, se rechaza.
       const esFechaOriginalSinTocar =
         promocion && form.fecha_inicio === promocion.fecha_inicio;
       if (!esFechaOriginalSinTocar) {
@@ -63,27 +56,32 @@ export default function PromocionForm({ abierto, promocion, onGuardar, onCerrar,
 
   const handleGuardar = () => {
     if (!validar()) return;
-    onGuardar({ ...form, precio: Number(form.precio) });
+    onGuardar({ ...form, precio: Number(form.precio), imagen: imagenFile });
   };
 
   return (
     <FormModal
       abierto={abierto}
-      titulo={promocion ? "Editar Promoción" : "Nueva Promoción"}
+      titulo={promocion ? "Editar Promoci\u00f3n" : "Nueva Promoci\u00f3n"}
       onCerrar={onCerrar}
       onGuardar={handleGuardar}
       cargando={cargando}
-      textoGuardar={promocion ? "Guardar cambios" : "Crear promoción"}
+      textoGuardar={promocion ? "Guardar cambios" : "Crear promoci\u00f3n"}
       maxWidth="520px"
     >
       <InputField label="Nombre" value={form.nombre} onChange={set("nombre")}
-        placeholder="Ej: Combo del día" required error={errores.nombre} />
-      <InputField label="Descripción" value={form.descripcion} onChange={set("descripcion")}
-        placeholder="Descripción opcional" rows={3} />
+        placeholder="Ej: Combo del d\u00eda" required error={errores.nombre} />
+      <InputField label="Descripci\u00f3n" value={form.descripcion} onChange={set("descripcion")}
+        placeholder="Descripci\u00f3n opcional" rows={3} />
       <InputField label="Precio (S/)" type="number" value={form.precio} onChange={set("precio")}
         placeholder="0.00" required error={errores.precio} />
-      <InputField label="URL de imagen" value={form.imagen_url} onChange={set("imagen_url")}
-        placeholder="https://..." />
+
+      <ImageUpload
+        label="Imagen"
+        value={promocion?.imagen}
+        onChange={setImagenFile}
+      />
+
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <InputField label="Fecha inicio" type="date" value={form.fecha_inicio}
           onChange={set("fecha_inicio")} required error={errores.fecha_inicio}

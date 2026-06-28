@@ -49,42 +49,34 @@ class DetalleOrdenWriteSerializer(serializers.Serializer):
 
 
 class OrdenReadSerializer(serializers.ModelSerializer):
-    """Lectura completa de una orden con detalles anidados."""
     detalles = DetalleOrdenReadSerializer(many=True, read_only=True)
-    usuario_nombre = serializers.CharField(
-        source="usuario.get_full_name", read_only=True
-    )
-    mesa_numero = serializers.IntegerField(
-        source="mesa.numero", read_only=True, default=None
-    )
-    estado_display = serializers.CharField(
-        source="get_estado_display", read_only=True
-    )
-    tipo_orden_display = serializers.CharField(
-        source="get_tipo_orden_display", read_only=True
-    )
+    usuario_nombre = serializers.CharField(source="usuario.get_full_name", read_only=True)
+    mesa_numero = serializers.IntegerField(source="mesa.numero", read_only=True, default=None)
+    estado_display = serializers.CharField(source="get_estado_display", read_only=True)
+    tipo_orden_display = serializers.CharField(source="get_tipo_orden_display", read_only=True)
+    pagos_resumen = serializers.SerializerMethodField()
 
     class Meta:
         model = Orden
         fields = [
-            "id",
-            "mesa",
-            "mesa_numero",
-            "usuario",
-            "usuario_nombre",
-            "estado",
-            "estado_display",
-            "tipo_orden",
-            "tipo_orden_display",
-            "fecha_creacion",
-            "fecha_cierre",
-            "total",
-            "cliente_nombre",
-            "cliente_telefono",
-            "direccion_entrega",
-            "plataforma_delivery",
-            "plataforma_otra",
+            "id", "mesa", "mesa_numero", "usuario", "usuario_nombre",
+            "estado", "estado_display", "tipo_orden", "tipo_orden_display",
+            "fecha_creacion", "fecha_cierre", "total",
+            "cliente_nombre", "cliente_telefono", "direccion_entrega",
+            "plataforma_delivery", "plataforma_otra",
             "detalles",
+            "pagos_resumen",
+        ]
+
+    def get_pagos_resumen(self, obj):
+        return [
+            {
+                "id": p.id,
+                "metodo_pago": p.metodo_pago,
+                "monto": str(p.monto),
+                "estado": p.estado,
+            }
+            for p in obj.pagos.filter(estado="completado")
         ]
 
 
