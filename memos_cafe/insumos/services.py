@@ -25,6 +25,26 @@ class TipoInsumoService:
         insumo.activo = False
         insumo.save(update_fields=["activo"])
         return insumo
+    
+    @staticmethod
+    def editar(insumo, **kwargs):
+        nombre = kwargs.get("nombre")
+        if nombre and TipoInsumo.objects.filter(nombre__iexact=nombre).exclude(pk=insumo.pk).exists():
+            raise ValueError(f"Ya existe un insumo con el nombre '{nombre}'.")
+        stock_minimo = kwargs.get("stock_minimo")
+        if stock_minimo is not None and stock_minimo < 0:
+            raise ValueError("El stock mínimo no puede ser negativo.")
+        for campo, valor in kwargs.items():
+            if valor is not None:
+                setattr(insumo, campo, valor)
+        insumo.save()
+        return insumo
+
+    @staticmethod
+    def activar(insumo):
+        insumo.activo = True
+        insumo.save(update_fields=["activo"])
+        return insumo
 
 
 class RegistroInsumoService:

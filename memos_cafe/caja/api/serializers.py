@@ -91,15 +91,19 @@ class MovimientoCajaReadSerializer(serializers.ModelSerializer):
         fields = ["id", "tipo", "monto", "motivo", "fecha"]
 
 
+
 class PagoWriteSerializer(serializers.Serializer):
-    """Valida los datos para procesar un pago. Sin lógica de negocio."""
-    # Fix 3: import directo arriba del archivo — sin __import__ hack.
-    # El queryset se evalúa en cada request gracias al callable form.
     orden = serializers.PrimaryKeyRelatedField(
         queryset=Orden.objects.filter(estado="abierta")
     )
     metodo_pago = serializers.ChoiceField(choices=Pago.MetodoPago.choices)
     monto = serializers.DecimalField(max_digits=10, decimal_places=2)
+    monto_recibido = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True
+    )
+    numero_operacion = serializers.CharField(
+        max_length=50, required=False, allow_blank=True, default=""
+    )
 
     def validate_monto(self, value):
         if value <= 0:
@@ -112,6 +116,7 @@ class PagoReadSerializer(serializers.ModelSerializer):
     metodo_pago_display = serializers.CharField(
         source="get_metodo_pago_display", read_only=True
     )
+    comprobante = serializers.SerializerMethodField()
 
     class Meta:
         model = Pago
@@ -122,10 +127,19 @@ class PagoReadSerializer(serializers.ModelSerializer):
             "metodo_pago",
             "metodo_pago_display",
             "monto",
+            "monto_recibido",
             "vuelto",
+            "numero_operacion",
             "estado",
             "fecha",
+            "comprobante",
         ]
+
+    def get_comprobante(self, obj):
+        if hasattr(obj, "comprobante"):
+            from memos_cafe.caja.api.serializers import ComprobanteReadSerializer
+            return ComprobanteReadSerializer(obj.comprobante).data
+        return None
 
 
 class ComprobanteWriteSerializer(serializers.Serializer):

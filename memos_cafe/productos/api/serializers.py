@@ -2,6 +2,16 @@ from rest_framework import serializers
 
 from memos_cafe.productos.models import Categoria, Producto, Promocion
 
+MAX_IMAGEN_MB = 5
+MAX_IMAGEN_BYTES = MAX_IMAGEN_MB * 1024 * 1024
+
+
+def validar_tamano_imagen(imagen):
+    if imagen and imagen.size > MAX_IMAGEN_BYTES:
+        raise serializers.ValidationError(
+            f"La imagen no debe superar los {MAX_IMAGEN_MB}MB."
+        )
+
 
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,12 +35,12 @@ class ProductoSerializer(serializers.ModelSerializer):
             "categoria",
             "categoria_nombre",
             "disponible",
-            "imagen_url",
+            "imagen",
         ]
 
 
 class ProductoWriteSerializer(serializers.Serializer):
-    """Escritura — valida datos para crear o actualizar un producto."""
+    """Escritura — valida datos para crear un producto."""
     nombre = serializers.CharField(max_length=100)
     descripcion = serializers.CharField(required=False, allow_blank=True, default="")
     precio = serializers.DecimalField(max_digits=10, decimal_places=2)
@@ -38,13 +48,35 @@ class ProductoWriteSerializer(serializers.Serializer):
         queryset=Categoria.objects.filter(activo=True)
     )
     disponible = serializers.BooleanField(default=True)
-    imagen_url = serializers.CharField(
-        max_length=255, required=False, allow_blank=True, default=""
-    )
+    imagen = serializers.ImageField(required=False, allow_null=True)
 
     def validate_precio(self, value):
         if value <= 0:
             raise serializers.ValidationError("El precio debe ser mayor a 0.")
+        return value
+
+    def validate_imagen(self, value):
+        validar_tamano_imagen(value)
+        return value
+
+
+class ProductoEditarSerializer(serializers.Serializer):
+    """Escritura parcial — para editar un producto existente."""
+    nombre = serializers.CharField(max_length=100, required=False)
+    descripcion = serializers.CharField(required=False, allow_blank=True)
+    precio = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    categoria = serializers.PrimaryKeyRelatedField(
+        queryset=Categoria.objects.filter(activo=True), required=False
+    )
+    imagen = serializers.ImageField(required=False, allow_null=True)
+
+    def validate_precio(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("El precio debe ser mayor a 0.")
+        return value
+
+    def validate_imagen(self, value):
+        validar_tamano_imagen(value)
         return value
 
 
@@ -57,7 +89,7 @@ class PromocionSerializer(serializers.ModelSerializer):
             "id",
             "nombre",
             "descripcion",
-            "imagen_url",
+            "imagen",
             "precio",
             "activo",
             "fecha_inicio",
@@ -70,12 +102,10 @@ class PromocionSerializer(serializers.ModelSerializer):
 
 
 class PromocionWriteSerializer(serializers.Serializer):
-    """Escritura — valida datos para crear o actualizar una promoción."""
+    """Escritura — valida datos para crear una promoción."""
     nombre = serializers.CharField(max_length=100)
     descripcion = serializers.CharField(required=False, allow_blank=True, default="")
-    imagen_url = serializers.CharField(
-        max_length=255, required=False, allow_blank=True, default=""
-    )
+    imagen = serializers.ImageField(required=False, allow_null=True)
     precio = serializers.DecimalField(max_digits=10, decimal_places=2)
     fecha_inicio = serializers.DateField()
     fecha_fin = serializers.DateField()
@@ -85,6 +115,10 @@ class PromocionWriteSerializer(serializers.Serializer):
             raise serializers.ValidationError("El precio debe ser mayor a 0.")
         return value
 
+    def validate_imagen(self, value):
+        validar_tamano_imagen(value)
+        return value
+
     def validate(self, data):
         if data.get("fecha_fin") and data.get("fecha_inicio"):
             if data["fecha_fin"] < data["fecha_inicio"]:
@@ -92,3 +126,22 @@ class PromocionWriteSerializer(serializers.Serializer):
                     {"fecha_fin": "La fecha de fin no puede ser anterior a la de inicio."}
                 )
         return data
+
+
+class PromocionEditarSerializer(serializers.Serializer):
+    """Escritura parcial — para editar una promoción existente."""
+    nombre = serializers.CharField(max_length=100, required=False)
+    descripcion = serializers.CharField(required=False, allow_blank=True)
+    imagen = serializers.ImageField(required=False, allow_null=True)
+    precio = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    fecha_inicio = serializers.DateField(required=False)
+    fecha_fin = serializers.DateField(required=False)
+
+    def validate_precio(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("El precio debe ser mayor a 0.")
+        return value
+
+    def validate_imagen(self, value):
+        validar_tamano_imagen(value)
+        return value

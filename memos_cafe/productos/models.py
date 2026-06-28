@@ -28,7 +28,7 @@ class Producto(models.Model):
         related_name="productos",
     )
     disponible = models.BooleanField(default=True)
-    imagen_url = models.CharField(max_length=255, blank=True)
+    imagen = models.ImageField(upload_to="productos/%Y/%m/", blank=True, null=True)
 
     objects = ProductoManager()
 
@@ -53,7 +53,7 @@ class Producto(models.Model):
 class Promocion(models.Model):
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True)
-    imagen_url = models.CharField(max_length=255, blank=True)
+    imagen = models.ImageField(upload_to="promociones/%Y/%m/", blank=True, null=True)
     precio = models.DecimalField(max_digits=10, decimal_places=2)
     activo = models.BooleanField(default=True)
     fecha_inicio = models.DateField()

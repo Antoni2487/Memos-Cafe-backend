@@ -5,6 +5,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from memos_cafe.reportes.views import (
     DashboardView,
     ReporteCajaView,
+    ReporteOrdenesExportView,
+    ReporteOrdenesView,
     ReporteProductosView,
     ReporteVentasView,
     ReporteVentasExportView,
@@ -39,6 +41,6 @@ urlpatterns = [
     path("reportes/ventas/export/", ReporteVentasExportView.as_view(), name="reporte-ventas-export"),
     path("reportes/productos/", ReporteProductosView.as_view(), name="reporte-productos"),
     path("reportes/caja/", ReporteCajaView.as_view(), name="reporte-caja"),
-    path("reportes/caja/export/", ReporteCajaExportView.as_view(),     name="reporte-caja-export"),
-    path("reportes/productos/export/", ReporteProductosExportView.as_view(), name="reporte-productos-export"),
+    path("reportes/ordenes/", ReporteOrdenesView.as_view(), name="reporte-ordenes"),
+    path("reportes/ordenes/export/", ReporteOrdenesExportView.as_view(), name="reporte-ordenes-export"),
 ]

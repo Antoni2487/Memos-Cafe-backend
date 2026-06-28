@@ -59,6 +59,23 @@ class TipoInsumoViewSet(
         insumo = self.get_object()
         TipoInsumoService.desactivar(insumo)
         return Response(TipoInsumoSerializer(insumo).data)
+    
+    @action(detail=True, methods=["patch"], url_path="editar")
+    def editar(self, request, pk=None):
+        insumo = self.get_object()
+        serializer = TipoInsumoWriteSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        try:
+            insumo = TipoInsumoService.editar(insumo, **serializer.validated_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(TipoInsumoSerializer(insumo).data)
+
+    @action(detail=True, methods=["post"], url_path="activar")
+    def activar(self, request, pk=None):
+        insumo = self.get_object()
+        TipoInsumoService.activar(insumo)
+        return Response(TipoInsumoSerializer(insumo).data)
 
 
 class RegistroInsumoViewSet(

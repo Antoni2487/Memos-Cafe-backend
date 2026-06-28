@@ -166,13 +166,13 @@ class ReporteVentasView(APIView):
 
         # Ventas por día
         ventas_por_dia = list(
-            pagos.annotate(dia=TruncDate("fecha"))
-            .values("dia")
+            pagos.annotate(fecha_dia=TruncDate("fecha"))
+            .values("fecha_dia")
             .annotate(
                 total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
                 ordenes=Count("id"),
             )
-            .order_by("dia")
+            .order_by("fecha_dia")
         )
 
         # Ventas por método de pago
@@ -258,17 +258,17 @@ class ReporteVentasView(APIView):
                 cell.alignment = center
 
             ventas_por_dia = (
-                pagos.annotate(dia=TruncDate("fecha"))
-                .values("dia")
+                pagos.annotate(fecha_dia=TruncDate("fecha"))
+                .values("fecha_dia")
                 .annotate(
                     total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
                     ordenes=Count("id"),
                 )
-                .order_by("dia")
+                .order_by("fecha_dia")
             )
 
             for row in ventas_por_dia:
-                ws2.append([str(row["fecha"]), float(row["total"]), row["ordenes"]])
+                ws2.append([str(row["fecha_dia"]), float(row["total"]), row["ordenes"]])
 
             ws2.column_dimensions["A"].width = 14
             ws2.column_dimensions["B"].width = 14
@@ -511,191 +511,222 @@ class ReporteVentasExportView(APIView):
     def get(self, request):
         return ReporteVentasView().export_excel(request)
 
-class ReporteCajaExportView(APIView):
-    """GET /api/reportes/caja/export/ — descarga Excel de turnos de caja."""
+
+class ReporteOrdenesView(APIView):
+    """
+    GET /api/reportes/ordenes/          — datos JSON
+    GET /api/reportes/ordenes/export/   — descarga Excel
+    Filtros: fecha_inicio, fecha_fin, tipo_orden, estado
+    Solo admin.
+    """
     permission_classes = [EsAdmin]
 
     def get(self, request):
         fecha_inicio = request.query_params.get("fecha_inicio")
         fecha_fin    = request.query_params.get("fecha_fin")
+        tipo_orden   = request.query_params.get("tipo_orden")
+        estado       = request.query_params.get("estado")
 
         if not fecha_inicio or not fecha_fin:
-            from rest_framework.response import Response as R
-            return R({"detail": "fecha_inicio y fecha_fin son requeridos."}, status=400)
+            return Response(
+                {"detail": "Los parametros fecha_inicio y fecha_fin son requeridos."},
+                status=400,
+            )
 
-        cajas = Caja.objects.filter(
-            estado="cerrada",
-            fecha_apertura__date__gte=fecha_inicio,
-            fecha_cierre__date__lte=fecha_fin,
+        ordenes = Orden.objects.filter(
+            fecha_creacion__date__gte=fecha_inicio,
+            fecha_creacion__date__lte=fecha_fin,
+        ).select_related("mesa", "usuario").prefetch_related("detalles")
+
+        if tipo_orden:
+            ordenes = ordenes.filter(tipo_orden=tipo_orden)
+        if estado:
+            ordenes = ordenes.filter(estado=estado)
+
+        # Resumen por tipo
+        resumen_tipo = list(
+            ordenes.values("tipo_orden")
+            .annotate(
+                cantidad=Count("id"),
+                total=Coalesce(Sum("total"), Value(0), output_field=DecimalField()),
+            )
+            .order_by("tipo_orden")
         )
 
-        try:
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Turnos de Caja"
+        # Resumen por estado
+        resumen_estado = list(
+            ordenes.values("estado")
+            .annotate(cantidad=Count("id"))
+            .order_by("estado")
+        )
 
-            header_font = Font(bold=True, color="FFFFFF")
-            header_fill = PatternFill("solid", fgColor="2C5545")
-            center      = Alignment(horizontal="center")
+        # Detalle de ordenes
+        detalle = []
+        for o in ordenes.order_by("-fecha_creacion"):
+            detalle.append({
+                "id":           o.id,
+                "fecha":        o.fecha_creacion,
+                "tipo_orden":   o.tipo_orden,
+                "estado":       o.estado,
+                "mesa":         o.mesa.numero if o.mesa else None,
+                "usuario":      o.usuario.get_full_name() or o.usuario.email,
+                "items":        o.detalles.count(),
+                "total":        o.total,
+                "cliente":      o.cliente_nombre or None,
+                "plataforma":   o.plataforma_delivery or None,
+            })
 
-            headers = [
-                "Caja #", "Cajero", "Estado",
-                "Apertura", "Cierre",
-                "Monto inicial (S/)", "Total ventas (S/)",
-                "Efectivo (S/)", "Tarjeta (S/)", "Yape/Plin (S/)",
-                "Monto esperado (S/)", "Monto contado (S/)", "Diferencia (S/)",
-                "Observaciones",
-            ]
-            ws.append(headers)
-            for col, h in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col)
-                cell.font      = header_font
-                cell.fill      = header_fill
-                cell.alignment = center
+        logger.info(
+            "Reporte ordenes consultado | usuario=%s | periodo=%s/%s | total=%d ordenes",
+            request.user.email, fecha_inicio, fecha_fin, len(detalle),
+        )
 
-            for caja in cajas:
-                pagos = caja.pagos.filter(estado="completado")
-                totales = pagos.aggregate(
-                    total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
-                )
-                por_metodo = {
-                    item["metodo_pago"]: float(item["total"])
-                    for item in pagos.values("metodo_pago").annotate(
-                        total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField())
-                    )
-                }
-                total_ventas         = float(totales["total"])
-                monto_inicial        = float(caja.monto_inicial or 0)
-                monto_final_esperado = monto_inicial + total_ventas
-                monto_final_contado  = float(caja.monto_final or 0)
-                diferencia           = (
-                    monto_final_contado - monto_final_esperado
-                    if caja.monto_final is not None else None
-                )
-                ws.append([
-                    caja.id,
-                    caja.usuario.get_full_name() or caja.usuario.email,
-                    caja.estado,
-                    str(caja.fecha_apertura) if caja.fecha_apertura else "",
-                    str(caja.fecha_cierre)   if caja.fecha_cierre   else "",
-                    monto_inicial,
-                    total_ventas,
-                    por_metodo.get("efectivo", 0),
-                    por_metodo.get("tarjeta",  0),
-                    por_metodo.get("yape",     0),
-                    monto_final_esperado,
-                    monto_final_contado,
-                    diferencia,
-                    caja.observaciones or "",
-                ])
+        return Response({
+            "periodo":        {"inicio": fecha_inicio, "fin": fecha_fin},
+            "resumen_tipo":   resumen_tipo,
+            "resumen_estado": resumen_estado,
+            "ordenes":        detalle,
+        })
 
-            for col in ["A","B","C","D","E","F","G","H","I","J","K","L","M","N"]:
-                ws.column_dimensions[col].width = 18
-
-            buffer = io.BytesIO()
-            wb.save(buffer)
-            buffer.seek(0)
-            filename = f"reporte_caja_{fecha_inicio}_{fecha_fin}.xlsx"
-            response = HttpResponse(
-                buffer.getvalue(),
-                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
-            response["Content-Disposition"] = f'attachment; filename="{filename}"'
-            return response
-
-        except Exception as exc:
-            logger.error("Error Excel caja | usuario=%s | error=%s", request.user.email, str(exc), exc_info=True)
-            from rest_framework.response import Response as R
-            return R({"detail": "Error al generar el reporte."}, status=500)
-
-
-class ReporteProductosExportView(APIView):
-    """GET /api/reportes/productos/export/ — descarga Excel de productos vendidos."""
-    permission_classes = [EsAdmin]
-
-    def get(self, request):
+    def export_excel(self, request):
+        """GET /api/reportes/ordenes/export/ — descarga .xlsx"""
         fecha_inicio = request.query_params.get("fecha_inicio")
         fecha_fin    = request.query_params.get("fecha_fin")
+        tipo_orden   = request.query_params.get("tipo_orden")
+        estado       = request.query_params.get("estado")
 
         if not fecha_inicio or not fecha_fin:
             from rest_framework.response import Response as R
             return R({"detail": "fecha_inicio y fecha_fin son requeridos."}, status=400)
 
+        ordenes = Orden.objects.filter(
+            fecha_creacion__date__gte=fecha_inicio,
+            fecha_creacion__date__lte=fecha_fin,
+        ).select_related("mesa", "usuario").prefetch_related("detalles__producto", "detalles__promocion")
+
+        if tipo_orden:
+            ordenes = ordenes.filter(tipo_orden=tipo_orden)
+        if estado:
+            ordenes = ordenes.filter(estado=estado)
+
         try:
             wb = openpyxl.Workbook()
             header_font = Font(bold=True, color="FFFFFF")
             header_fill = PatternFill("solid", fgColor="2C5545")
             center      = Alignment(horizontal="center")
 
-            # Hoja 1: Productos
+            def aplicar_header(ws, headers):
+                ws.append(headers)
+                for col, _ in enumerate(headers, 1):
+                    cell = ws.cell(row=1, column=col)
+                    cell.font      = header_font
+                    cell.fill      = header_fill
+                    cell.alignment = center
+
+            # Hoja 1: Resumen
             ws1 = wb.active
-            ws1.title = "Productos"
-            headers1 = ["Producto", "Categoría", "Cantidad vendida", "Total (S/)"]
-            ws1.append(headers1)
-            for col, h in enumerate(headers1, 1):
-                cell = ws1.cell(row=1, column=col)
-                cell.font = header_font; cell.fill = header_fill; cell.alignment = center
+            ws1.title = "Resumen"
+            ws1.append(["Reporte de Ordenes", f"{fecha_inicio} al {fecha_fin}"])
+            ws1["A1"].font = Font(bold=True, size=13)
+            ws1.append([])
 
-            productos = (
-                DetalleOrden.objects.filter(
-                    orden__estado="cerrada",
-                    orden__fecha_cierre__date__gte=fecha_inicio,
-                    orden__fecha_cierre__date__lte=fecha_fin,
-                    producto__isnull=False,
-                )
-                .values(nombre=F("producto__nombre"), categoria=F("producto__categoria__nombre"))
+            resumen_tipo = (
+                ordenes.values("tipo_orden")
                 .annotate(
-                    cantidad=Sum("cantidad"),
-                    total=Coalesce(Sum("subtotal"), Value(0), output_field=DecimalField()),
+                    cantidad=Count("id"),
+                    total=Coalesce(Sum("total"), Value(0), output_field=DecimalField()),
                 )
-                .order_by("-cantidad")
+                .order_by("tipo_orden")
             )
-            for p in productos:
-                ws1.append([p["nombre"], p["categoria"], p["cantidad"], float(p["total"])])
+            ws1.append(["Tipo de orden", "Cantidad", "Total (S/)"])
+            for row in resumen_tipo:
+                ws1.append([row["tipo_orden"], row["cantidad"], float(row["total"])])
 
-            for col in ["A","B","C","D"]:
-                ws1.column_dimensions[col].width = 22
-
-            # Hoja 2: Promociones
-            ws2 = wb.create_sheet("Promociones")
-            headers2 = ["Promoción", "Cantidad vendida", "Total (S/)"]
-            ws2.append(headers2)
-            for col, h in enumerate(headers2, 1):
-                cell = ws2.cell(row=1, column=col)
-                cell.font = header_font; cell.fill = header_fill; cell.alignment = center
-
-            promociones = (
-                DetalleOrden.objects.filter(
-                    orden__estado="cerrada",
-                    orden__fecha_cierre__date__gte=fecha_inicio,
-                    orden__fecha_cierre__date__lte=fecha_fin,
-                    promocion__isnull=False,
-                )
-                .values(nombre=F("promocion__nombre"))
-                .annotate(
-                    cantidad=Sum("cantidad"),
-                    total=Coalesce(Sum("subtotal"), Value(0), output_field=DecimalField()),
-                )
-                .order_by("-cantidad")
+            ws1.append([])
+            resumen_estado = (
+                ordenes.values("estado")
+                .annotate(cantidad=Count("id"))
+                .order_by("estado")
             )
-            for p in promociones:
-                ws2.append([p["nombre"], p["cantidad"], float(p["total"])])
+            ws1.append(["Estado", "Cantidad"])
+            for row in resumen_estado:
+                ws1.append([row["estado"], row["cantidad"]])
 
-            for col in ["A","B","C"]:
-                ws2.column_dimensions[col].width = 22
+            ws1.column_dimensions["A"].width = 18
+            ws1.column_dimensions["B"].width = 12
+            ws1.column_dimensions["C"].width = 14
+
+            # Hoja 2: Detalle de ordenes
+            ws2 = wb.create_sheet("Detalle ordenes")
+            headers2 = ["#", "Fecha", "Tipo", "Estado", "Mesa", "Usuario", "Cliente", "Plataforma", "Items", "Total (S/)"]
+            aplicar_header(ws2, headers2)
+
+            for o in ordenes.order_by("-fecha_creacion"):
+                ws2.append([
+                    o.id,
+                    o.fecha_creacion.strftime("%Y-%m-%d %H:%M"),
+                    o.tipo_orden,
+                    o.estado,
+                    o.mesa.numero if o.mesa else "",
+                    o.usuario.get_full_name() or o.usuario.email,
+                    o.cliente_nombre or "",
+                    o.plataforma_delivery or "",
+                    o.detalles.count(),
+                    float(o.total),
+                ])
+
+            for col in ["A","B","C","D","E","F","G","H","I","J"]:
+                ws2.column_dimensions[col].width = 16
+
+            # Hoja 3: Detalle de items
+            ws3 = wb.create_sheet("Items por orden")
+            headers3 = ["Orden #", "Producto / Promocion", "Cantidad", "Precio unit.", "Subtotal", "Nota", "Impreso"]
+            aplicar_header(ws3, headers3)
+
+            for o in ordenes.order_by("id"):
+                for d in o.detalles.all():
+                    nombre = d.producto.nombre if d.producto else (d.promocion.nombre if d.promocion else "")
+                    ws3.append([
+                        o.id,
+                        nombre,
+                        d.cantidad,
+                        float(d.precio_unitario),
+                        float(d.subtotal),
+                        d.nota or "",
+                        "Si" if d.impreso else "No",
+                    ])
+
+            for col in ["A","B","C","D","E","F","G"]:
+                ws3.column_dimensions[col].width = 16
 
             buffer = io.BytesIO()
             wb.save(buffer)
             buffer.seek(0)
-            filename = f"reporte_productos_{fecha_inicio}_{fecha_fin}.xlsx"
+
+            filename = f"reporte_ordenes_{fecha_inicio}_{fecha_fin}.xlsx"
+            logger.info(
+                "Export Excel ordenes | usuario=%s | archivo=%s",
+                request.user.email, filename,
+            )
             response = HttpResponse(
                 buffer.getvalue(),
                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
-            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            response["Content-Disposition"] = f'attachment; filename="{filename}"' 
             return response
 
         except Exception as exc:
-            logger.error("Error Excel productos | usuario=%s | error=%s", request.user.email, str(exc), exc_info=True)
+            logger.error(
+                "Error Excel ordenes | usuario=%s | error=%s",
+                request.user.email, str(exc), exc_info=True,
+            )
             from rest_framework.response import Response as R
             return R({"detail": "Error al generar el reporte."}, status=500)
+
+
+class ReporteOrdenesExportView(APIView):
+    """GET /api/reportes/ordenes/export/"""
+    permission_classes = [EsAdmin]
+
+    def get(self, request):
+        return ReporteOrdenesView().export_excel(request)

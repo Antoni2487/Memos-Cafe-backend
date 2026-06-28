@@ -1,5 +1,6 @@
 from rest_framework import mixins, status
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
@@ -9,8 +10,10 @@ from memos_cafe.productos.api.serializers import (
     CategoriaSerializer,
     ProductoSerializer,
     ProductoWriteSerializer,
+    ProductoEditarSerializer,
     PromocionSerializer,
     PromocionWriteSerializer,
+    PromocionEditarSerializer,
 )
 from memos_cafe.utils.permissions import EsAdmin, TodosAutenticados
 
@@ -79,6 +82,8 @@ class ProductoViewSet(
     mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
     def get_queryset(self):
         if self.request.user.groups.filter(name="admin").exists():
             return Producto.objects.con_categoria()
@@ -103,12 +108,24 @@ class ProductoViewSet(
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(ProductoSerializer(producto).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["patch"], url_path="editar", permission_classes=[EsAdmin])
+    def editar(self, request, pk=None):
+        """PATCH /api/productos/{id}/editar/"""
+        producto = self.get_object()
+        serializer = ProductoEditarSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        try:
+            ProductoService.editar(producto, **serializer.validated_data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(ProductoSerializer(producto).data)
+
     @action(detail=True, methods=["patch"], url_path="precio", permission_classes=[EsAdmin])
     def actualizar_precio(self, request, pk=None):
         """PATCH /api/productos/{id}/precio/"""
         producto = self.get_object()
         precio = request.data.get("precio")
-        if not precio:
+        if precio is None:
             return Response(
                 {"detail": "El campo 'precio' es requerido."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -120,29 +137,18 @@ class ProductoViewSet(
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(ProductoSerializer(producto).data)
 
-    @action(detail=True, methods=["post"], url_path="desactivar", permission_classes=[EsAdmin])
-    def desactivar(self, request, pk=None):
-        """POST /api/productos/{id}/desactivar/"""
-        producto = self.get_object()
-        producto.desactivar()
-        return Response(ProductoSerializer(producto).data)
-
-    @action(detail=True, methods=["patch"], url_path="editar", permission_classes=[EsAdmin])
-    def editar(self, request, pk=None):
-        """PATCH /api/productos/categorias/{id}/editar/"""
-        categoria = self.get_object()
-        nombre = request.data.get("nombre", "").strip()
-        try:
-            CategoriaService.editar(categoria, nombre)
-        except ValueError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(CategoriaSerializer(categoria).data)
-
     @action(detail=True, methods=["post"], url_path="activar", permission_classes=[EsAdmin])
     def activar(self, request, pk=None):
         """POST /api/productos/{id}/activar/"""
         producto = self.get_object()
         producto.activar()
+        return Response(ProductoSerializer(producto).data)
+
+    @action(detail=True, methods=["post"], url_path="desactivar", permission_classes=[EsAdmin])
+    def desactivar(self, request, pk=None):
+        """POST /api/productos/{id}/desactivar/"""
+        producto = self.get_object()
+        producto.desactivar()
         return Response(ProductoSerializer(producto).data)
 
 
@@ -151,6 +157,8 @@ class PromocionViewSet(
     mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
     def get_queryset(self):
         if self.request.user.groups.filter(name="admin").exists():
             return Promocion.objects.all()
@@ -174,15 +182,15 @@ class PromocionViewSet(
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(PromocionSerializer(promocion).data, status=status.HTTP_201_CREATED)
-    
+
     @action(detail=True, methods=["patch"], url_path="editar", permission_classes=[EsAdmin])
     def editar(self, request, pk=None):
         """PATCH /api/productos/promociones/{id}/editar/"""
         promocion = self.get_object()
-        serializer = PromocionWriteSerializer(data=request.data, partial=True)
+        serializer = PromocionEditarSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         try:
-            promocion = PromocionService.editar(promocion, **serializer.validated_data)
+            PromocionService.editar(promocion, **serializer.validated_data)
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(PromocionSerializer(promocion).data)

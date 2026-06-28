@@ -52,7 +52,8 @@ class ProductoService:
         precio: Decimal,
         categoria: Categoria,
         descripcion: str = "",
-        imagen_url: str = "",
+        disponible: bool = True,   
+        imagen=None,
     ) -> Producto:
         if precio <= 0:
             raise ValueError("El precio debe ser mayor a 0.")
@@ -61,8 +62,19 @@ class ProductoService:
             precio=precio,
             categoria=categoria,
             descripcion=descripcion,
-            imagen_url=imagen_url,
+             disponible=disponible,  
+            imagen=imagen,
         )
+
+    @staticmethod
+    def editar(producto: Producto, **kwargs) -> Producto:
+        precio = kwargs.get("precio")
+        if precio is not None and precio <= 0:
+            raise ValueError("El precio debe ser mayor a 0.")
+        for campo, valor in kwargs.items():
+                setattr(producto, campo, valor)
+        producto.save()
+        return producto
 
     @staticmethod
     def actualizar_precio(producto: Producto, nuevo_precio: Decimal) -> Producto:
@@ -81,7 +93,7 @@ class PromocionService:
         fecha_inicio,
         fecha_fin,
         descripcion: str = "",
-        imagen_url: str = "",
+        imagen=None,
     ) -> Promocion:
         if precio <= 0:
             raise ValueError("El precio debe ser mayor a 0.")
@@ -99,7 +111,7 @@ class PromocionService:
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,
             descripcion=descripcion,
-            imagen_url=imagen_url,
+            imagen=imagen,
         )
 
     @staticmethod
@@ -112,7 +124,8 @@ class PromocionService:
         if fecha_fin < fecha_inicio:
             raise ValueError("La fecha de fin no puede ser anterior a la de inicio.")
         for campo, valor in kwargs.items():
-            setattr(promocion, campo, valor)
+            if valor is not None:
+                setattr(promocion, campo, valor)
         promocion.save()
         return promocion
 

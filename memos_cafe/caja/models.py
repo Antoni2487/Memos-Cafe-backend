@@ -1,3 +1,4 @@
+# memos_cafe/caja/models.py
 from django.conf import settings
 from django.db import models
 
@@ -15,18 +16,13 @@ class Caja(models.Model):
         on_delete=models.PROTECT,
         related_name="sesiones_caja",
     )
-    estado = models.CharField(
-        max_length=10,
-        choices=Estado.choices,
-        default=Estado.ABIERTA,
-    )
+    estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ABIERTA)
     monto_inicial = models.DecimalField(max_digits=10, decimal_places=2)
     monto_final = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     fecha_apertura = models.DateTimeField(auto_now_add=True)
     fecha_cierre = models.DateTimeField(null=True, blank=True)
     observaciones = models.TextField(blank=True)
 
-    # Manager personalizado
     objects = CajaManager()
 
     class Meta:
@@ -38,10 +34,7 @@ class Caja(models.Model):
     def __str__(self):
         return f"Caja #{self.id} — {self.usuario} ({self.estado})"
 
-    # --- Comportamiento del objeto ---
-
     def cerrar(self, monto_final, observaciones=""):
-        """Cierra la sesión. Lanza ValueError si ya está cerrada."""
         from django.utils import timezone
         if self.estado != self.Estado.ABIERTA:
             raise ValueError("Esta sesión de caja ya está cerrada.")
@@ -88,15 +81,27 @@ class Pago(models.Model):
         YAPE = "yape", "Yape"
         PLIN = "plin", "Plin"
 
-    orden = models.OneToOneField(Orden, on_delete=models.PROTECT, related_name="pago")
+    # ForeignKey en lugar de OneToOneField — permite múltiples pagos por orden
+    orden = models.ForeignKey(
+        Orden,
+        on_delete=models.PROTECT,
+        related_name="pagos",
+    )
     caja = models.ForeignKey(Caja, on_delete=models.PROTECT, related_name="pagos")
     metodo_pago = models.CharField(max_length=10, choices=MetodoPago.choices)
     monto = models.DecimalField(max_digits=10, decimal_places=2)
+    monto_recibido = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Solo para efectivo: monto físico entregado por el cliente."
+    )
     vuelto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    numero_operacion = models.CharField(
+        max_length=50, blank=True, default="",
+        help_text="Número de operación para pagos con tarjeta."
+    )
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.COMPLETADO)
     fecha = models.DateTimeField(auto_now_add=True)
 
-    # Manager personalizado
     objects = PagoManager()
 
     class Meta:
@@ -106,10 +111,9 @@ class Pago(models.Model):
         ordering = ["-fecha"]
 
     def __str__(self):
-        return f"Pago Orden #{self.orden_id} — S/.{self.monto}"
+        return f"Pago Orden #{self.orden_id} — {self.metodo_pago} S/.{self.monto}"
 
     def anular(self):
-        """Anula el pago. Solo el admin puede hacer esto via service."""
         if self.estado == self.Estado.ANULADO:
             raise ValueError("Este pago ya está anulado.")
         self.estado = self.Estado.ANULADO
@@ -121,6 +125,7 @@ class Comprobante(models.Model):
         BOLETA = "boleta", "Boleta"
         FACTURA = "factura", "Factura"
 
+    # Sigue OneToOne con Pago — un comprobante por pago
     pago = models.OneToOneField(Pago, on_delete=models.PROTECT, related_name="comprobante")
     tipo = models.CharField(max_length=10, choices=TipoComprobante.choices)
     serie = models.CharField(max_length=10)

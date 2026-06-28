@@ -134,6 +134,8 @@ class PagoViewSet(
                 orden=serializer.validated_data["orden"],
                 metodo_pago=serializer.validated_data["metodo_pago"],
                 monto=serializer.validated_data["monto"],
+                monto_recibido=serializer.validated_data["monto_recibido"],
+                numero_operacion=serializer.validated_data.get("numero_operacion", ""),
             )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
