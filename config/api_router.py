@@ -1,4 +1,4 @@
-from django.urls import include, path
+﻿from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -15,7 +15,6 @@ from memos_cafe.reportes.views import (
 )
 from memos_cafe.users.api.views import CustomTokenObtainPairView, UserViewSet
 
-# ── Router para ViewSets ──────────────────────────────────────────
 router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="user")
 
@@ -39,8 +38,11 @@ urlpatterns = [
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("reportes/ventas/", ReporteVentasView.as_view(), name="reporte-ventas"),
     path("reportes/ventas/export/", ReporteVentasExportView.as_view(), name="reporte-ventas-export"),
+    path("reportes/productos/export/", ReporteProductosExportView.as_view(), name="reporte-productos-export"),
     path("reportes/productos/", ReporteProductosView.as_view(), name="reporte-productos"),
+    path("reportes/caja/export/", ReporteCajaExportView.as_view(), name="reporte-caja-export"),
     path("reportes/caja/", ReporteCajaView.as_view(), name="reporte-caja"),
     path("reportes/ordenes/", ReporteOrdenesView.as_view(), name="reporte-ordenes"),
     path("reportes/ordenes/export/", ReporteOrdenesExportView.as_view(), name="reporte-ordenes-export"),
 ]
+
