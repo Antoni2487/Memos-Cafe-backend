@@ -1,7 +1,6 @@
+﻿from decimal import Decimal
 
-from decimal import Decimal
-
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 
 from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, Pago
@@ -11,14 +10,19 @@ from memos_cafe.ordenes.models import Orden
 class CajaService:
 
     @staticmethod
+    @transaction.atomic
     def abrir_sesion(usuario, monto_inicial: Decimal) -> Caja:
         if Caja.objects.get_sesion_abierta():
-            raise ValueError("Ya existe una sesión de caja abierta. Ciérrela antes de abrir una nueva.")
-        return Caja.objects.create(usuario=usuario, monto_inicial=monto_inicial)
+            raise ValueError("Ya existe una sesion de caja abierta. Cierrela antes de abrir una nueva.")
+        try:
+            return Caja.objects.create(usuario=usuario, monto_inicial=monto_inicial)
+        except IntegrityError:
+            raise ValueError("Ya existe una sesion de caja abierta. Cierrela antes de abrir una nueva.")
 
     @staticmethod
+    @transaction.atomic
     def cerrar_sesion(monto_final: Decimal, observaciones: str = "") -> Caja:
-        caja = Caja.objects.get_sesion_abierta_o_error()
+        caja = Caja.objects.get_sesion_abierta_para_cierre()
         caja.cerrar(monto_final=monto_final, observaciones=observaciones)
         return caja
 
@@ -42,13 +46,16 @@ class PagoService:
         numero_operacion: str = "",
     ) -> Pago:
 
+        # Lock de fila: evita que dos requests concurrentes sobre la misma
+        # orden lean el mismo estado "pre-cobro" y generen doble pago.
+        orden = Orden.objects.select_for_update().get(pk=orden.pk)
+
         if orden.estado != Orden.Estado.ABIERTA:
-            raise ValueError("Solo se pueden cobrar órdenes abiertas.")
+            raise ValueError("Solo se pueden cobrar ordenes abiertas.")
 
         if monto <= 0:
             raise ValueError("El monto del pago debe ser mayor a 0.")
 
-        # Suma de pagos completados ya registrados para esta orden
         pagado_previo = (
             Pago.objects
             .filter(orden=orden, estado=Pago.Estado.COMPLETADO)
@@ -57,14 +64,13 @@ class PagoService:
         pendiente = orden.total - pagado_previo
 
         if pendiente <= 0:
-            raise ValueError("Esta orden ya está completamente pagada.")
+            raise ValueError("Esta orden ya esta completamente pagada.")
 
         if monto > pendiente:
             raise ValueError(
                 f"El monto ingresado (S/.{monto}) supera el pendiente (S/.{pendiente:.2f})."
             )
 
-        # Vuelto solo aplica para efectivo y solo en el último pago
         vuelto = Decimal("0")
         es_ultimo_pago = monto == pendiente
 
@@ -93,7 +99,6 @@ class PagoService:
             numero_operacion=numero_operacion if metodo_pago == Pago.MetodoPago.TARJETA else "",
         )
 
-        # Cerrar orden solo cuando la suma total de pagos cubre el total
         total_pagado = pagado_previo + monto
         if total_pagado >= orden.total:
             orden.cerrar()
@@ -104,11 +109,11 @@ class PagoService:
     @transaction.atomic
     def anular_pago(pago: Pago) -> Pago:
         if pago.estado == Pago.Estado.ANULADO:
-            raise ValueError("Este pago ya está anulado.")
+            raise ValueError("Este pago ya esta anulado.")
 
-        orden = pago.orden
+        orden = Orden.objects.select_for_update().get(pk=pago.orden_id)
         if orden.estado == Orden.Estado.ANULADA:
-            raise ValueError("La orden asociada a este pago ya está anulada.")
+            raise ValueError("La orden asociada a este pago ya esta anulada.")
 
         pago.anular()
 
@@ -116,8 +121,20 @@ class PagoService:
             caja=pago.caja,
             tipo=MovimientoCaja.Tipo.SALIDA,
             monto=pago.monto,
-            motivo=f"Devolución por anulación de pago #{pago.id} — Orden #{orden.id}",
+            motivo=f"Devolucion por anulacion de pago #{pago.id} - Orden #{orden.id}",
         )
+
+        # Si la orden estaba cerrada por este pago y, tras anularlo, ya no
+        # queda cobertura completa del total, se reabre para que vuelva a
+        # aparecer en "por cobrar" y el negocio no pierda esa venta.
+        if orden.estado == Orden.Estado.CERRADA:
+            pagado_restante = (
+                Pago.objects
+                .filter(orden=orden, estado=Pago.Estado.COMPLETADO)
+                .aggregate(total=Sum("monto"))["total"] or Decimal("0")
+            )
+            if pagado_restante < orden.total:
+                orden.reabrir()
 
         return pago
 
