@@ -6,6 +6,7 @@ import {
 import useCaja from "../../hooks/useCaja";
 import cajaService from "../../services/cajaService";
 import { PageHeader } from "../../components/common";
+import { useIsMobile } from "../../hooks/useMediaQuery";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => `S/ ${Number(n ?? 0).toFixed(2)}`;
@@ -123,7 +124,6 @@ function OrdenCard({ orden, onCobrar }) {
     const [abierto, setAbierto] = useState(false);
     const tipo = TIPO_LABEL[orden.tipo_orden] ?? orden.tipo_orden;
 
-    // Calcular pendiente (en caso de pagos parciales ya registrados)
     const pagado = (orden.pagos_resumen ?? [])
         .filter(p => p.estado === "completado")
         .reduce((s, p) => s + Number(p.monto), 0);
@@ -135,7 +135,7 @@ function OrdenCard({ orden, onCobrar }) {
             borderRadius: 12, overflow: "hidden",
         }}>
             <div style={{
-                padding: "14px 16px", display: "flex",
+                padding: "14px 16px", display: "flex", flexWrap: "wrap", gap: 10,
                 justifyContent: "space-between", alignItems: "center",
             }}>
                 <div>
@@ -146,7 +146,7 @@ function OrdenCard({ orden, onCobrar }) {
                         {tipo}{orden.mesa_numero ? ` · Mesa ${orden.mesa_numero}` : ""}
                         {orden.cliente_nombre ? ` · ${orden.cliente_nombre}` : ""}
                     </p>
-                    <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                    <div style={{ display: "flex", gap: 12, marginTop: 4, flexWrap: "wrap" }}>
                         <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: C.verde }}>
                             Total: {fmt(orden.total)}
                         </p>
@@ -173,13 +173,12 @@ function OrdenCard({ orden, onCobrar }) {
                 </div>
             </div>
 
-            {/* Detalles expandibles */}
             {abierto && (
                 <div style={{
                     borderTop: `1px solid ${C.borde}`, padding: "10px 16px 14px",
-                    background: "rgba(44,85,69,0.02)"
+                    background: "rgba(44,85,69,0.02)", overflowX: "auto"
                 }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 280 }}>
                         <thead>
                             <tr style={{
                                 color: "rgba(44,85,69,0.55)", fontWeight: 700,
@@ -247,7 +246,6 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
     const esEfectivo = metodo === "efectivo";
     const esTarjeta = metodo === "tarjeta";
 
-    // Vuelto: solo efectivo, solo si monto recibido > monto a pagar
     const vuelto = esEfectivo && montoRecibido
         ? Math.max(0, recibidoNum - montoNum)
         : 0;
@@ -283,30 +281,31 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
     return (
         <Modal titulo={`Cobrar Orden #${orden.id}`} onCerrar={onCerrar}>
 
-            {/* Resumen de la orden */}
             <div style={{ background: C.bg, borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
                 <p style={{ margin: 0, fontSize: 12, color: "#666" }}>
                     {TIPO_LABEL[orden.tipo_orden] ?? orden.tipo_orden}
                     {orden.mesa_numero ? ` · Mesa ${orden.mesa_numero}` : ""}
                     {orden.cliente_nombre ? ` · ${orden.cliente_nombre}` : ""}
                 </p>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 10 }}>
-                    <tbody>
-                        {(orden.detalles ?? []).map((d) => {
-                            const nombre = d.producto?.nombre ?? d.promocion?.nombre ?? `Ítem #${d.id}`;
-                            return (
-                                <tr key={d.id}>
-                                    <td style={{ padding: "3px 0", color: "#444" }}>
-                                        {d.cantidad}× {nombre}
-                                    </td>
-                                    <td style={{ textAlign: "right", fontWeight: 600, color: C.verde }}>
-                                        {fmt(d.subtotal)}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 10, minWidth: 260 }}>
+                        <tbody>
+                            {(orden.detalles ?? []).map((d) => {
+                                const nombre = d.producto?.nombre ?? d.promocion?.nombre ?? `Ítem #${d.id}`;
+                                return (
+                                    <tr key={d.id}>
+                                        <td style={{ padding: "3px 0", color: "#444" }}>
+                                            {d.cantidad}× {nombre}
+                                        </td>
+                                        <td style={{ textAlign: "right", fontWeight: 600, color: C.verde }}>
+                                            {fmt(d.subtotal)}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
                 <div style={{
                     borderTop: `1px solid ${C.borde}`, marginTop: 8, paddingTop: 8,
                     display: "flex", justifyContent: "space-between"
@@ -334,7 +333,6 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
                 )}
             </div>
 
-            {/* Método de pago */}
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.verde, marginBottom: 8 }}>
                 Método de pago
             </label>
@@ -354,7 +352,6 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
                 ))}
             </div>
 
-            {/* Monto a cobrar en este pago */}
             <Campo
                 label={pendiente < Number(orden.total)
                     ? `Monto de este pago (S/) — pendiente: ${fmt(pendiente)}`
@@ -366,7 +363,6 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
                 hint={montoNum < pendiente ? `Quedará un pendiente de ${fmt(pendiente - montoNum)}` : undefined}
             />
 
-            {/* Monto recibido — solo efectivo */}
             {esEfectivo && (
                 <Campo
                     label="Monto recibido del cliente (S/)"
@@ -378,7 +374,6 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
                 />
             )}
 
-            {/* Vuelto — solo efectivo */}
             {esEfectivo && montoRecibido && (
                 <div style={{
                     background: vuelto >= 0 ? C.bg : C.rojoPal,
@@ -393,7 +388,6 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
                 </div>
             )}
 
-            {/* Número de operación — solo tarjeta */}
             {esTarjeta && (
                 <Campo
                     label="Número de operación (POS) *"
@@ -427,7 +421,6 @@ function ModalComprobante({ pago, onCerrar, onEmitido }) {
 
     const esFactura = tipo === "factura";
 
-    // Prefijo de serie según tipo
     const handleTipo = (t) => {
         setTipo(t);
         setSerie(t === "factura" ? "F001" : "B001");
@@ -462,7 +455,6 @@ function ModalComprobante({ pago, onCerrar, onEmitido }) {
     return (
         <Modal titulo={`Emitir comprobante — Pago #${pago.id}`} onCerrar={onCerrar} ancho={420}>
 
-            {/* Resumen del pago */}
             <div style={{
                 background: C.bg, borderRadius: 8, padding: "10px 12px", marginBottom: 16,
                 fontSize: 12, color: "#555"
@@ -472,7 +464,6 @@ function ModalComprobante({ pago, onCerrar, onEmitido }) {
                 </p>
             </div>
 
-            {/* Tipo */}
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.verde, marginBottom: 8 }}>
                 Tipo de comprobante
             </label>
@@ -489,11 +480,11 @@ function ModalComprobante({ pago, onCerrar, onEmitido }) {
                 ))}
             </div>
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <div style={{ flex: "0 0 100px" }}>
                     <Campo label="Serie" value={serie} onChange={setSerie} placeholder="B001" />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 140 }}>
                     <Campo label="Número" type="number" value={numero}
                         onChange={setNumero} placeholder="1" />
                 </div>
@@ -559,7 +550,7 @@ function FilaPago({ pago, esAdmin, onAnular, onEmitirComprobante }) {
                 <td style={td}>
                     <span style={{ fontWeight: 700, fontSize: 13, color: C.verde }}>{fmt(pago.monto)}</span>
                 </td>
-                <td style={td}>
+                <td className="hidden sm:table-cell" style={td}>
                     {pago.metodo_pago === "efectivo" && Number(pago.vuelto) > 0
                         ? <span style={{ fontSize: 12, color: C.amarillo, fontWeight: 600 }}>
                             {fmt(pago.vuelto)}
@@ -576,7 +567,7 @@ function FilaPago({ pago, esAdmin, onAnular, onEmitirComprobante }) {
                         {anulado ? "Anulado" : "Completado"}
                     </span>
                 </td>
-                <td style={td}>
+                <td className="hidden sm:table-cell" style={td}>
                     <span style={{ fontSize: 11, color: "#888" }}>
                         {new Date(pago.fecha).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}
                     </span>
@@ -612,7 +603,6 @@ function FilaPago({ pago, esAdmin, onAnular, onEmitirComprobante }) {
                 </td>
             </tr>
 
-            {/* Fila expandida con detalles de la orden */}
             {expandido && (
                 <tr style={{ background: "rgba(44,85,69,0.02)", borderBottom: `1px solid ${C.borde}` }}>
                     <td colSpan={9} style={{ padding: "10px 16px" }}>
@@ -623,38 +613,40 @@ function FilaPago({ pago, esAdmin, onAnular, onEmitirComprobante }) {
                         }}>
                             Detalle de la orden #{pago.orden?.id}
                         </p>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                            <tbody>
-                                {(pago.orden?.detalles ?? []).map((d) => {
-                                    const nombre = d.producto?.nombre ?? d.promocion?.nombre ?? `Ítem #${d.id}`;
-                                    return (
-                                        <tr key={d.id}>
-                                            <td style={{ padding: "3px 0", color: "#444" }}>
-                                                {d.cantidad}× {nombre}
-                                                {d.nota ? <span style={{ color: "#999" }}> · {d.nota}</span> : ""}
-                                            </td>
-                                            <td style={{ textAlign: "right", fontWeight: 600, color: C.verde }}>
-                                                {fmt(d.subtotal)}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                            <tfoot>
-                                <tr>
-                                    <td style={{
-                                        paddingTop: 6, fontWeight: 700, fontSize: 12,
-                                        color: "rgba(44,85,69,0.6)"
-                                    }}>Total orden</td>
-                                    <td style={{
-                                        paddingTop: 6, textAlign: "right",
-                                        fontWeight: 700, fontSize: 14, color: C.verde
-                                    }}>
-                                        {fmt(pago.orden?.total)}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 260 }}>
+                                <tbody>
+                                    {(pago.orden?.detalles ?? []).map((d) => {
+                                        const nombre = d.producto?.nombre ?? d.promocion?.nombre ?? `Ítem #${d.id}`;
+                                        return (
+                                            <tr key={d.id}>
+                                                <td style={{ padding: "3px 0", color: "#444" }}>
+                                                    {d.cantidad}× {nombre}
+                                                    {d.nota ? <span style={{ color: "#999" }}> · {d.nota}</span> : ""}
+                                                </td>
+                                                <td style={{ textAlign: "right", fontWeight: 600, color: C.verde }}>
+                                                    {fmt(d.subtotal)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td style={{
+                                            paddingTop: 6, fontWeight: 700, fontSize: 12,
+                                            color: "rgba(44,85,69,0.6)"
+                                        }}>Total orden</td>
+                                        <td style={{
+                                            paddingTop: 6, textAlign: "right",
+                                            fontWeight: 700, fontSize: 14, color: C.verde
+                                        }}>
+                                            {fmt(pago.orden?.total)}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </td>
                 </tr>
             )}
@@ -671,8 +663,8 @@ const btnAccion = (color, bg) => ({
 // ══════════════════════════════════════════════════════════════════════════════
 export default function CajaPage() {
     const { caja, movimientos, pagos, ordenesAbiertas, cargando, recargar, esAdmin } = useCaja();
+    const isMobile = useIsMobile();
 
-    // Modales
     const [modalAbrir, setModalAbrir] = useState(false);
     const [modalCerrar, setModalCerrar] = useState(false);
     const [modalMovimiento, setModalMovimiento] = useState(false);
@@ -680,7 +672,6 @@ export default function CajaPage() {
     const [pagoComprobante, setPagoComprobante] = useState(null);
     const [pagoAnular, setPagoAnular] = useState(null);
 
-    // Forms simples
     const [montoInicial, setMontoInicial] = useState("");
     const [montoFinal, setMontoFinal] = useState("");
     const [obsCierre, setObsCierre] = useState("");
@@ -697,7 +688,6 @@ export default function CajaPage() {
         setErrMsg("");
     };
 
-    // ── Acciones ────────────────────────────────────────────────────────────────
     const handleAbrir = async () => {
         if (!montoInicial) return setErrMsg("Ingresa el monto inicial.");
         try {
@@ -743,7 +733,6 @@ export default function CajaPage() {
         } finally { setAnulando(false); }
     };
 
-    // ── Métricas ────────────────────────────────────────────────────────────────
     const desglose = useMemo(() => {
         const acc = {};
         (pagos ?? [])
@@ -761,7 +750,6 @@ export default function CajaPage() {
         </div>
     );
 
-    // ── Sin caja abierta ────────────────────────────────────────────────────────
     if (!caja) return (
         <>
             <PageHeader titulo="Caja" descripcion="No hay ningún turno abierto." />
@@ -797,7 +785,6 @@ export default function CajaPage() {
         </>
     );
 
-    // ── Con caja abierta ────────────────────────────────────────────────────────
     const diferencia = Number(caja.diferencia ?? 0);
     const totalVentas = Number(caja.total_ventas ?? 0);
 
@@ -807,7 +794,7 @@ export default function CajaPage() {
                 titulo="Caja"
                 descripcion={`Turno abierto por ${caja.usuario_nombre}`}
                 accion={
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <Btn color={C.gris} outline onClick={() => setModalMovimiento(true)}>
                             <Plus size={14} /> Movimiento
                         </Btn>
@@ -818,7 +805,6 @@ export default function CajaPage() {
                 }
             />
 
-            {/* Métricas */}
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
                 <Metrica label="Monto inicial" valor={fmt(caja.monto_inicial)} />
                 <Metrica label="Total ventas" valor={fmt(totalVentas)}
@@ -832,10 +818,12 @@ export default function CajaPage() {
                 />
             </div>
 
-            {/* Layout 2 columnas */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+            <div style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                gap: 20, marginBottom: 24
+            }}>
 
-                {/* Órdenes por cobrar */}
                 <div style={{
                     background: "white", borderRadius: 12,
                     border: `1px solid ${C.borde}`, padding: 20
@@ -854,7 +842,6 @@ export default function CajaPage() {
                     )}
                 </div>
 
-                {/* Movimientos */}
                 <div style={{
                     background: "white", borderRadius: 12,
                     border: `1px solid ${C.borde}`, padding: 20
@@ -895,7 +882,6 @@ export default function CajaPage() {
                 </div>
             </div>
 
-            {/* Tabla de pagos */}
             <div style={{
                 background: "white", borderRadius: 12,
                 border: `1px solid ${C.borde}`, overflow: "hidden"
@@ -921,38 +907,48 @@ export default function CajaPage() {
                         Sin pagos registrados aún
                     </div>
                 ) : (
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                            <tr style={{ background: "rgba(44,85,69,0.04)" }}>
-                                {["", "#", "Orden", "Método", "Monto", "Vuelto", "Estado", "Hora", "Acciones"]
-                                    .map(h => (
-                                        <th key={h} style={{
+                    <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 640 }}>
+                            <thead>
+                                <tr style={{ background: "rgba(44,85,69,0.04)" }}>
+                                    {[
+                                        { label: "", cls: "" },
+                                        { label: "#", cls: "" },
+                                        { label: "Orden", cls: "" },
+                                        { label: "Método", cls: "" },
+                                        { label: "Monto", cls: "" },
+                                        { label: "Vuelto", cls: "hidden sm:table-cell" },
+                                        { label: "Estado", cls: "" },
+                                        { label: "Hora", cls: "hidden sm:table-cell" },
+                                        { label: "Acciones", cls: "" },
+                                    ].map(({ label, cls }) => (
+                                        <th key={label} className={cls} style={{
                                             padding: "10px 12px", textAlign: "left",
                                             fontSize: 11, fontWeight: 700, color: "rgba(44,85,69,0.6)",
                                             textTransform: "uppercase", letterSpacing: "0.07em",
                                             borderBottom: `1px solid ${C.borde}`
                                         }}>
-                                            {h}
+                                            {label}
                                         </th>
                                     ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {pagos.map((p) => (
-                                <FilaPago
-                                    key={p.id}
-                                    pago={p}
-                                    esAdmin={esAdmin}
-                                    onAnular={setPagoAnular}
-                                    onEmitirComprobante={setPagoComprobante}
-                                />
-                            ))}
-                        </tbody>
-                    </table>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {pagos.map((p) => (
+                                    <FilaPago
+                                        key={p.id}
+                                        pago={p}
+                                        esAdmin={esAdmin}
+                                        onAnular={setPagoAnular}
+                                        onEmitirComprobante={setPagoComprobante}
+                                    />
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
 
-            {/* ── Modales ── */}
             {ordenCobrar && (
                 <ModalCobrar
                     orden={ordenCobrar}
@@ -969,7 +965,6 @@ export default function CajaPage() {
                 />
             )}
 
-            {/* Confirm anular pago */}
             {pagoAnular && (
                 <Modal titulo="¿Anular pago?" onCerrar={() => setPagoAnular(null)} ancho={380}>
                     <p style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>
@@ -977,7 +972,7 @@ export default function CajaPage() {
                         <strong>{fmt(pagoAnular.monto)}</strong> (Orden #{pagoAnular.orden?.id}).
                         Se registrará automáticamente una salida de caja por devolución.
                     </p>
-                    <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                         <Btn outline color={C.gris} onClick={() => setPagoAnular(null)} full>
                             Cancelar
                         </Btn>
@@ -988,7 +983,6 @@ export default function CajaPage() {
                 </Modal>
             )}
 
-            {/* Modal movimiento */}
             {modalMovimiento && (
                 <Modal titulo="Registrar movimiento"
                     onCerrar={() => { setModalMovimiento(false); limpiar(); }}>
@@ -1023,7 +1017,6 @@ export default function CajaPage() {
                 </Modal>
             )}
 
-            {/* Modal cerrar turno */}
             {modalCerrar && (
                 <Modal titulo="Cerrar turno"
                     onCerrar={() => { setModalCerrar(false); limpiar(); }}>
