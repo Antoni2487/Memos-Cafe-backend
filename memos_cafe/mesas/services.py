@@ -1,4 +1,4 @@
-from memos_cafe.mesas.models import Mesa
+﻿from memos_cafe.mesas.models import Mesa
 
 
 class MesaService:
@@ -34,14 +34,26 @@ class MesaService:
 
     @staticmethod
     def cambiar_estado(mesa: Mesa, nuevo_estado: str) -> Mesa:
+        """Cambio manual de estado (endpoint PATCH /mesas/{id}/estado/).
+
+        'ocupada' NUNCA es un destino valido aqui: una mesa se ocupa
+        unicamente como consecuencia de crear una orden (Mesa.ocupar()),
+        nunca por accion manual del mesero/admin.
+        'libre' tampoco es alcanzable manualmente desde 'ocupada': se
+        libera automaticamente al cobrar o anular la orden asociada
+        (Mesa.liberar()). Desde 'ocupada' no hay transicion manual posible.
+
+        Las unicas transiciones manuales permitidas son reservar y
+        cancelar una reserva.
+        """
         transiciones_validas = {
-            Mesa.Estado.LIBRE: [Mesa.Estado.OCUPADA, Mesa.Estado.RESERVADA],
-            Mesa.Estado.OCUPADA: [Mesa.Estado.LIBRE],
-            Mesa.Estado.RESERVADA: [Mesa.Estado.LIBRE, Mesa.Estado.OCUPADA],
+            Mesa.Estado.LIBRE: [Mesa.Estado.RESERVADA],
+            Mesa.Estado.RESERVADA: [Mesa.Estado.LIBRE],
+            Mesa.Estado.OCUPADA: [],
         }
         if nuevo_estado not in transiciones_validas.get(mesa.estado, []):
             raise ValueError(
-                f"No se puede cambiar el estado de '{mesa.estado}' a '{nuevo_estado}'."
+                f"No se puede cambiar el estado de '{mesa.estado}' a '{nuevo_estado}' manualmente."
             )
         mesa.estado = nuevo_estado
         mesa.save(update_fields=["estado"])
