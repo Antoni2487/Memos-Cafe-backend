@@ -1,4 +1,4 @@
-# memos_cafe/caja/models.py
+﻿# memos_cafe/caja/models.py
 from django.conf import settings
 from django.db import models
 
@@ -27,17 +27,24 @@ class Caja(models.Model):
 
     class Meta:
         db_table = "caja"
-        verbose_name = "Sesión de caja"
+        verbose_name = "Sesion de caja"
         verbose_name_plural = "Sesiones de caja"
         ordering = ["-fecha_apertura"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["estado"],
+                condition=models.Q(estado="abierta"),
+                name="unica_caja_abierta",
+            ),
+        ]
 
     def __str__(self):
-        return f"Caja #{self.id} — {self.usuario} ({self.estado})"
+        return f"Caja #{self.id} - {self.usuario} ({self.estado})"
 
     def cerrar(self, monto_final, observaciones=""):
         from django.utils import timezone
         if self.estado != self.Estado.ABIERTA:
-            raise ValueError("Esta sesión de caja ya está cerrada.")
+            raise ValueError("Esta sesion de caja ya esta cerrada.")
         self.estado = self.Estado.CERRADA
         self.monto_final = monto_final
         self.observaciones = observaciones
@@ -67,7 +74,7 @@ class MovimientoCaja(models.Model):
         ordering = ["-fecha"]
 
     def __str__(self):
-        return f"{self.tipo} S/.{self.monto} — {self.motivo}"
+        return f"{self.tipo} S/.{self.monto} - {self.motivo}"
 
 
 class Pago(models.Model):
