@@ -1,4 +1,4 @@
-from rest_framework import serializers
+﻿from rest_framework import serializers
 
 from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, Pago
 from memos_cafe.ordenes.api.serializers import OrdenReadSerializer
@@ -32,6 +32,8 @@ class CajaReadSerializer(serializers.ModelSerializer):
         source="usuario.get_full_name", read_only=True
     )
     total_ventas = serializers.SerializerMethodField()
+    movimientos_neto = serializers.SerializerMethodField()
+    esperado_en_caja = serializers.SerializerMethodField()
     diferencia = serializers.SerializerMethodField()
 
     class Meta:
@@ -44,13 +46,15 @@ class CajaReadSerializer(serializers.ModelSerializer):
             "monto_inicial",
             "monto_final",
             "total_ventas",
+            "movimientos_neto",
+            "esperado_en_caja",
             "diferencia",
             "fecha_apertura",
             "fecha_cierre",
             "observaciones",
         ]
 
-    def _get_total_ventas(self, obj) -> object:
+    def _get_total_ventas(self, obj):
         """
         Fix 9: calcula total_por_caja una sola vez y lo cachea en el objeto
         durante la serialización. Antes se llamaba dos veces (get_total_ventas
@@ -63,14 +67,33 @@ class CajaReadSerializer(serializers.ModelSerializer):
             setattr(obj, cache_attr, resultado["total"])
         return getattr(obj, cache_attr)
 
+    def _get_movimientos_neto(self, obj):
+        """Entradas menos salidas de movimientos manuales, cacheado
+        igual que total_ventas para no duplicar queries."""
+        cache_attr = "_movimientos_neto_cache"
+        if not hasattr(obj, cache_attr):
+            neto = MovimientoCaja.objects.neto_por_caja(obj)
+            setattr(obj, cache_attr, neto)
+        return getattr(obj, cache_attr)
+
     def get_total_ventas(self, obj):
         return self._get_total_ventas(obj)
+
+    def get_movimientos_neto(self, obj):
+        return self._get_movimientos_neto(obj)
+
+    def get_esperado_en_caja(self, obj):
+        """Lo que deberia haber fisicamente en caja: fondo inicial +
+        ventas + movimientos manuales (entradas suman, salidas restan)."""
+        ventas = self._get_total_ventas(obj)
+        neto_mov = self._get_movimientos_neto(obj)
+        return obj.monto_inicial + ventas + neto_mov
 
     def get_diferencia(self, obj):
         if obj.monto_final is None:
             return None
-        total = self._get_total_ventas(obj)  # reutiliza el cache, sin query extra
-        return obj.monto_final - (obj.monto_inicial + total)
+        esperado = self.get_esperado_en_caja(obj)
+        return obj.monto_final - esperado
 
 
 class MovimientoCajaSerializer(serializers.Serializer):

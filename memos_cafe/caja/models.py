@@ -2,7 +2,7 @@
 from django.conf import settings
 from django.db import models
 
-from memos_cafe.caja.managers import CajaManager, PagoManager
+from memos_cafe.caja.managers import CajaManager, MovimientoCajaManager, PagoManager
 from memos_cafe.ordenes.models import Orden
 
 
@@ -67,6 +67,8 @@ class MovimientoCaja(models.Model):
     motivo = models.CharField(max_length=200)
     fecha = models.DateTimeField(auto_now_add=True)
 
+    objects = MovimientoCajaManager()
+
     class Meta:
         db_table = "movimiento_caja"
         verbose_name = "Movimiento de caja"
@@ -88,7 +90,6 @@ class Pago(models.Model):
         YAPE = "yape", "Yape"
         PLIN = "plin", "Plin"
 
-    # ForeignKey en lugar de OneToOneField — permite múltiples pagos por orden
     orden = models.ForeignKey(
         Orden,
         on_delete=models.PROTECT,
@@ -132,7 +133,6 @@ class Comprobante(models.Model):
         BOLETA = "boleta", "Boleta"
         FACTURA = "factura", "Factura"
 
-    # Sigue OneToOne con Pago — un comprobante por pago
     pago = models.OneToOneField(Pago, on_delete=models.PROTECT, related_name="comprobante")
     tipo = models.CharField(max_length=10, choices=TipoComprobante.choices)
     serie = models.CharField(max_length=10)

@@ -6,6 +6,8 @@ from django.db.models import Sum
 from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, Pago
 from memos_cafe.ordenes.models import Orden
 
+UMBRAL_DIFERENCIA_SIN_OBSERVACION = Decimal("5.00")
+
 
 class CajaService:
 
@@ -23,6 +25,29 @@ class CajaService:
     @transaction.atomic
     def cerrar_sesion(monto_final: Decimal, observaciones: str = "") -> Caja:
         caja = Caja.objects.get_sesion_abierta_para_cierre()
+
+        ordenes_pendientes = Orden.objects.filter(estado=Orden.Estado.ABIERTA).count()
+        if ordenes_pendientes > 0:
+            raise ValueError(
+                f"Hay {ordenes_pendientes} orden(es) sin cobrar. "
+                f"Cobralas o anulalas antes de cerrar la caja."
+            )
+
+        total_ventas = (
+            Pago.objects
+            .filter(caja=caja, estado=Pago.Estado.COMPLETADO)
+            .aggregate(total=Sum("monto"))["total"] or Decimal("0")
+        )
+        movimientos_neto = MovimientoCaja.objects.neto_por_caja(caja)
+        esperado = caja.monto_inicial + total_ventas + movimientos_neto
+        diferencia = Decimal(monto_final) - esperado
+
+        if abs(diferencia) > UMBRAL_DIFERENCIA_SIN_OBSERVACION and not observaciones.strip():
+            raise ValueError(
+                f"La diferencia de caja (S/.{diferencia:.2f}) supera el margen permitido "
+                f"(S/.{UMBRAL_DIFERENCIA_SIN_OBSERVACION}). Debes indicar una observacion."
+            )
+
         caja.cerrar(monto_final=monto_final, observaciones=observaciones)
         return caja
 
@@ -46,8 +71,6 @@ class PagoService:
         numero_operacion: str = "",
     ) -> Pago:
 
-        # Lock de fila: evita que dos requests concurrentes sobre la misma
-        # orden lean el mismo estado "pre-cobro" y generen doble pago.
         orden = Orden.objects.select_for_update().get(pk=orden.pk)
 
         if orden.estado != Orden.Estado.ABIERTA:
@@ -124,9 +147,6 @@ class PagoService:
             motivo=f"Devolucion por anulacion de pago #{pago.id} - Orden #{orden.id}",
         )
 
-        # Si la orden estaba cerrada por este pago y, tras anularlo, ya no
-        # queda cobertura completa del total, se reabre para que vuelva a
-        # aparecer en "por cobrar" y el negocio no pierda esa venta.
         if orden.estado == Orden.Estado.CERRADA:
             pagado_restante = (
                 Pago.objects

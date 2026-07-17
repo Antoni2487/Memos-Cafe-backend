@@ -787,6 +787,7 @@ export default function CajaPage() {
 
     const diferencia = Number(caja.diferencia ?? 0);
     const totalVentas = Number(caja.total_ventas ?? 0);
+    const esperadoEnCaja = Number(caja.esperado_en_caja ?? (Number(caja.monto_inicial) + totalVentas));
 
     return (
         <>
@@ -1029,7 +1030,7 @@ export default function CajaPage() {
                         </p>
                         <p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 700, color: C.verde }}>
                             Esperado en caja: <strong>
-                                {fmt(Number(caja.monto_inicial) + totalVentas)}
+                                {fmt(esperadoEnCaja)}
                             </strong>
                         </p>
                     </div>
@@ -1038,7 +1039,7 @@ export default function CajaPage() {
                     <Campo label="Observaciones (opcional)" value={obsCierre}
                         onChange={setObsCierre} placeholder="Ej: Faltaron S/5 en efectivo" />
                     {montoFinal && (() => {
-                        const diff = Number(montoFinal) - (Number(caja.monto_inicial) + totalVentas);
+                        const diff = Number(montoFinal) - esperadoEnCaja;
                         return (
                             <div style={{
                                 background: diff < 0 ? C.rojoPal : C.bg,
@@ -1063,3 +1064,4 @@ export default function CajaPage() {
         </>
     );
 }
+
