@@ -27,7 +27,7 @@ from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero
 class DashboardView(APIView):
     """
     GET /api/dashboard/
-    KPIs del dÃ­a actual para el admin.
+    KPIs del dí­a para el admin.
     Solo admin.
     """
     permission_classes = [EsAdmin]
@@ -35,13 +35,13 @@ class DashboardView(APIView):
     def get(self, request):
         hoy = timezone.localdate()
 
-        # â”€â”€ Ã“rdenes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # â”€â”€ ordenes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ordenes_hoy = Orden.objects.filter(fecha_creacion__date=hoy)
         ordenes_abiertas = Orden.objects.filter(estado="abierta").count()
         ordenes_cerradas_hoy = ordenes_hoy.filter(estado="cerrada").count()
         ordenes_anuladas_hoy = ordenes_hoy.filter(estado="anulada").count()
 
-        # â”€â”€ Ventas del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # â”€â”€ Ventas del dí­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         pagos_hoy = Pago.objects.filter(
             estado="completado",
             fecha__date=hoy,
@@ -56,7 +56,7 @@ class DashboardView(APIView):
             round(total_ventas / total_pagos, 2) if total_pagos > 0 else 0
         )
 
-        # Desglose por mÃ©todo de pago
+        # Desglose por metodo de pago
         ventas_por_metodo = list(
             pagos_hoy.values("metodo_pago")
             .annotate(
@@ -85,13 +85,13 @@ class DashboardView(APIView):
             )["total"]
             caja_info = {
                 "id": caja_activa.id,
-                "cajero": caja_activa.usuario.get_full_name() or caja_activa.usuario.email,
+                "cajero": caja_activa.usuario.name or caja_activa.usuario.get_full_name() or caja_activa.usuario.email,                
                 "fecha_apertura": caja_activa.fecha_apertura,
                 "monto_inicial": caja_activa.monto_inicial,
                 "ventas_turno": ventas_turno,
             }
 
-        # â”€â”€ Top 5 productos del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # â”€â”€ Top 5 productos del dia â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         top_productos = list(
             DetalleOrden.objects.filter(
                 orden__estado="cerrada",
@@ -141,7 +141,7 @@ class ReporteVentasView(APIView):
                 status=400,
             )
 
-        # Base queryset â€” solo pagos completados
+        # Base queryset de solo pagos completados
         pagos = Pago.objects.filter(
             estado="completado",
             fecha__date__gte=fecha_inicio,
@@ -175,7 +175,7 @@ class ReporteVentasView(APIView):
             .order_by("fecha_dia")
         )
 
-        # Ventas por mÃ©todo de pago
+        # Ventas por metodo de pago
         ventas_por_metodo = list(
             pagos.values("metodo_pago")
             .annotate(
@@ -247,7 +247,7 @@ class ReporteVentasView(APIView):
             ws1.append(["Ticket promedio", float(ticket)])
             ws1.append([])
 
-            # â”€â”€ Hoja 2: Ventas por dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            # â”€â”€ Hoja 2: Ventas por dia â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ws2 = wb.create_sheet("Ventas por dÃ­a")
             headers2 = ["Fecha", "Total (S/)", "Ã“rdenes"]
             ws2.append(headers2)
@@ -270,7 +270,7 @@ class ReporteVentasView(APIView):
             ws2.column_dimensions["B"].width = 14
             ws2.column_dimensions["C"].width = 10
 
-            # â”€â”€ Hoja 3: Por mÃ©todo de pago â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            # â”€â”€ Hoja 3: Por metodo de pago â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ws3 = wb.create_sheet("Por mÃ©todo de pago")
             headers3 = ["MÃ©todo", "Total (S/)", "Cantidad"]
             ws3.append(headers3)
@@ -830,3 +830,78 @@ class ReporteOrdenesExportView(APIView):
 
     def get(self, request):
         return ReporteOrdenesView().export_excel(request)
+
+
+class AlertasView(APIView):
+    """GET /api/alertas/ — eventos del turno actual (últimas 8 horas)."""
+    permission_classes = [EsAdmin]
+
+    def get(self, request):
+        from django.utils import timezone
+        from datetime import timedelta
+
+        desde = timezone.now() - timedelta(hours=8)
+
+        alertas = []
+
+        # ── Aperturas de caja ─────────────────────────────────────────────
+        cajas = Caja.objects.filter(
+            fecha_apertura__gte=desde
+        ).select_related("usuario")
+
+        for caja in cajas:
+            alertas.append({
+                "tipo": "caja_apertura",
+                "mensaje": f"Caja abierta por el usuario {caja.usuario.name or caja.usuario.get_full_name() or caja.usuario.email}",
+                "fecha": caja.fecha_apertura,
+                "icono": "caja",
+            })
+            if caja.fecha_cierre:
+                alertas.append({
+                    "tipo": "caja_cierre",
+                    "mensaje": f"Caja cerrada por el usuario {caja.usuario.name or caja.usuario.get_full_name() or caja.usuario.email}",
+                    "fecha": caja.fecha_cierre,
+                    "icono": "caja",
+                })
+
+        # ── Órdenes creadas ───────────────────────────────────────────────
+        ordenes = Orden.objects.filter(
+            fecha_creacion__gte=desde
+        ).select_related("usuario", "mesa")
+
+        for orden in ordenes:
+            tipo_display = {
+                "mesa":     f"Mesa {orden.mesa.numero}" if orden.mesa else "Mesa",
+                "llevar":   "Para llevar",
+                "delivery": "Delivery",
+            }.get(orden.tipo_orden, orden.tipo_orden)
+
+            alertas.append({
+                "tipo": "orden_creada",
+                "mensaje": f"Nueva orden #{orden.id} — {tipo_display}",
+                "fecha": orden.fecha_creacion,
+                "icono": "orden",
+            })
+
+        # ── Ventas cobradas ───────────────────────────────────────────────
+        pagos = Pago.objects.filter(
+            fecha__gte=desde,
+            estado="completado",
+        ).select_related("orden")
+
+        for pago in pagos:
+            alertas.append({
+                "tipo": "venta_cobrada",
+                "mensaje": f"Venta cobrada — Orden #{pago.orden_id} · S/ {pago.monto}",
+                "fecha": pago.fecha,
+                "icono": "venta",
+            })
+
+        # ── Ordenar por fecha descendente ─────────────────────────────────
+        alertas.sort(key=lambda x: x["fecha"], reverse=True)
+
+        # Serializar fechas
+        for a in alertas:
+            a["fecha"] = a["fecha"].isoformat()
+
+        return Response(alertas)

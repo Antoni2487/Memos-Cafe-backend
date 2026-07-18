@@ -113,51 +113,17 @@ export default function Sidebar() {
       className="flex flex-col h-full shrink-0"
       style={{ backgroundColor: "#2C5545", width: "220px" }}
     >
-      {/* Logo */}
-      <div
-        className="flex flex-col items-center py-7 px-5 border-b"
-        style={{ borderColor: "rgba(255,255,255,0.12)" }}
-      >
-        <div className="flex items-center gap-2.5">
-          {/* Flor SVG — igual al Figma */}
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-            <circle cx="18" cy="18" r="4" fill="white" opacity="0.9" />
-            <ellipse cx="18" cy="8" rx="3.5" ry="5.5" fill="white" opacity="0.85" />
-            <ellipse cx="18" cy="28" rx="3.5" ry="5.5" fill="white" opacity="0.85" />
-            <ellipse cx="8" cy="18" rx="5.5" ry="3.5" fill="white" opacity="0.85" />
-            <ellipse cx="28" cy="18" rx="5.5" ry="3.5" fill="white" opacity="0.85" />
-            <ellipse cx="10.5" cy="10.5" rx="3.5" ry="5.5" transform="rotate(-45 10.5 10.5)" fill="white" opacity="0.75" />
-            <ellipse cx="25.5" cy="25.5" rx="3.5" ry="5.5" transform="rotate(-45 25.5 25.5)" fill="white" opacity="0.75" />
-            <ellipse cx="25.5" cy="10.5" rx="3.5" ry="5.5" transform="rotate(45 25.5 10.5)" fill="white" opacity="0.75" />
-            <ellipse cx="10.5" cy="25.5" rx="3.5" ry="5.5" transform="rotate(45 10.5 25.5)" fill="white" opacity="0.75" />
-            <circle cx="18" cy="18" r="3" fill="white" />
-          </svg>
-          <span
-            className="text-white tracking-wide"
-            style={{
-              fontFamily: "'Playfair Display', serif",
-              fontSize: "20px",
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-            }}
-          >
-            Memo's
-          </span>
-        </div>
-        <span
-          className="text-white mt-1"
-          style={{
-            fontFamily: "'Lato', sans-serif",
-            fontSize: "10px",
-            letterSpacing: "0.18em",
-            opacity: 0.6,
-            textTransform: "uppercase",
-          }}
-        >
-          Café
-        </span>
-      </div>
 
+      {/* Logo */}
+
+      <img
+        src="/logomemos.png"
+        alt="Memo's Café"
+        style={{
+          width: 150,
+          objectFit: "contain",
+        }}
+      />
       {/* Navegación */}
       <nav className="flex-1 py-4 px-3 flex flex-col gap-0.5 overflow-y-auto">
         {visibleItems.map(({ icon: Icon, label, path }) => (

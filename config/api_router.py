@@ -12,8 +12,10 @@ from memos_cafe.reportes.views import (
     ReporteVentasExportView,
     ReporteCajaExportView,
     ReporteProductosExportView,
+    AlertasView,  
 )
 from memos_cafe.users.api.views import CustomTokenObtainPairView, UserViewSet
+from memos_cafe.reportes.views import AlertasView 
 
 router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="user")
@@ -24,6 +26,7 @@ urlpatterns = [
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
     # Users
+    path("alertas/", AlertasView.as_view(), name="alertas"),
     path("", include(router.urls)),
     path("roles/", include("memos_cafe.roles.urls")),
 
