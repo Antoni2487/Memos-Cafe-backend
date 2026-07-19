@@ -1,6 +1,6 @@
 ﻿from rest_framework import serializers
 
-from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, Pago
+from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, NotaCredito, Pago
 from memos_cafe.ordenes.api.serializers import OrdenReadSerializer
 from memos_cafe.ordenes.models import Orden  # fix 3: import directo, sin __import__
 
@@ -55,12 +55,6 @@ class CajaReadSerializer(serializers.ModelSerializer):
         ]
 
     def _get_total_ventas(self, obj):
-        """
-        Fix 9: calcula total_por_caja una sola vez y lo cachea en el objeto
-        durante la serialización. Antes se llamaba dos veces (get_total_ventas
-        + get_diferencia) = 2 queries por objeto en el listado.
-        Ahora = 1 query por objeto.
-        """
         cache_attr = "_total_ventas_cache"
         if not hasattr(obj, cache_attr):
             resultado = Pago.objects.total_por_caja(obj)
@@ -68,8 +62,6 @@ class CajaReadSerializer(serializers.ModelSerializer):
         return getattr(obj, cache_attr)
 
     def _get_movimientos_neto(self, obj):
-        """Entradas menos salidas de movimientos manuales, cacheado
-        igual que total_ventas para no duplicar queries."""
         cache_attr = "_movimientos_neto_cache"
         if not hasattr(obj, cache_attr):
             neto = MovimientoCaja.objects.neto_por_caja(obj)
@@ -83,8 +75,6 @@ class CajaReadSerializer(serializers.ModelSerializer):
         return self._get_movimientos_neto(obj)
 
     def get_esperado_en_caja(self, obj):
-        """Lo que deberia haber fisicamente en caja: fondo inicial +
-        ventas + movimientos manuales (entradas suman, salidas restan)."""
         ventas = self._get_total_ventas(obj)
         neto_mov = self._get_movimientos_neto(obj)
         return obj.monto_inicial + ventas + neto_mov
@@ -114,7 +104,6 @@ class MovimientoCajaReadSerializer(serializers.ModelSerializer):
         fields = ["id", "tipo", "monto", "motivo", "fecha"]
 
 
-
 class PagoWriteSerializer(serializers.Serializer):
     orden = serializers.PrimaryKeyRelatedField(
         queryset=Orden.objects.filter(estado="abierta")
@@ -134,12 +123,35 @@ class PagoWriteSerializer(serializers.Serializer):
         return value
 
 
+class NotaCreditoWriteSerializer(serializers.Serializer):
+    """Valida el motivo obligatorio al anular un pago."""
+    motivo = serializers.ChoiceField(choices=NotaCredito.Motivo.choices)
+    detalle = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+
+    def validate(self, data):
+        if data["motivo"] == NotaCredito.Motivo.OTRO and not data.get("detalle", "").strip():
+            raise serializers.ValidationError(
+                {"detalle": "Para el motivo 'Otro' debes especificar un detalle."}
+            )
+        return data
+
+
+class NotaCreditoReadSerializer(serializers.ModelSerializer):
+    motivo_display = serializers.CharField(source="get_motivo_display", read_only=True)
+    usuario_nombre = serializers.CharField(source="usuario.get_full_name", read_only=True)
+
+    class Meta:
+        model = NotaCredito
+        fields = ["id", "motivo", "motivo_display", "detalle", "monto", "usuario_nombre", "fecha"]
+
+
 class PagoReadSerializer(serializers.ModelSerializer):
     orden = OrdenReadSerializer(read_only=True)
     metodo_pago_display = serializers.CharField(
         source="get_metodo_pago_display", read_only=True
     )
     comprobante = serializers.SerializerMethodField()
+    nota_credito = serializers.SerializerMethodField()
 
     class Meta:
         model = Pago
@@ -156,12 +168,18 @@ class PagoReadSerializer(serializers.ModelSerializer):
             "estado",
             "fecha",
             "comprobante",
+            "nota_credito",
         ]
 
     def get_comprobante(self, obj):
         if hasattr(obj, "comprobante"):
             from memos_cafe.caja.api.serializers import ComprobanteReadSerializer
             return ComprobanteReadSerializer(obj.comprobante).data
+        return None
+
+    def get_nota_credito(self, obj):
+        if hasattr(obj, "nota_credito"):
+            return NotaCreditoReadSerializer(obj.nota_credito).data
         return None
 
 

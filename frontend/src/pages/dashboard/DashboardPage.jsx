@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   AreaChart,
   Area,
@@ -25,7 +25,7 @@ import {
 import dashboardService from "../../services/dashboardService";
 import { LoadingSpinner, EmptyState } from "../../components/common";
 
-// ─── Paleta de colores del proyecto ──────────────────────────────────────────
+// --- Paleta de colores del proyecto ---
 const VERDE         = "#2C5545";
 const VERDE_OSCURO  = "#1E4A37";
 const VERDE_CLARO   = "rgba(44,85,69,0.08)";
@@ -46,7 +46,7 @@ const METODO_LABELS = {
   plin:     "Plin",
 };
 
-// ─── Formateadores ────────────────────────────────────────────────────────────
+// --- Formateadores ---
 const formatSoles = (v) =>
   `S/ ${Number(v).toLocaleString("es-PE", { minimumFractionDigits: 2 })}`;
 
@@ -56,7 +56,7 @@ const formatFecha = (str) => {
   return d.toLocaleDateString("es-PE", { day: "2-digit", month: "short" });
 };
 
-// ─── Tooltip personalizado para el área chart ─────────────────────────────────
+// --- Tooltip personalizado para el area chart ---
 function TooltipVentas({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -82,7 +82,7 @@ function TooltipVentas({ active, payload, label }) {
   );
 }
 
-// ─── Tarjeta KPI ──────────────────────────────────────────────────────────────
+// --- Tarjeta KPI ---
 function KPICard({ titulo, valor, subtitulo, icono: Icono, acento = false, delay = 0 }) {
   return (
     <div
@@ -154,7 +154,7 @@ function KPICard({ titulo, valor, subtitulo, icono: Icono, acento = false, delay
   );
 }
 
-// ─── Card genérica ────────────────────────────────────────────────────────────
+// --- Card generica ---
 function Card({ titulo, children, accion, style = {} }) {
   return (
     <div
@@ -191,7 +191,7 @@ function Card({ titulo, children, accion, style = {} }) {
   );
 }
 
-// ─── Estado de mesas visual ───────────────────────────────────────────────────
+// --- Estado de mesas visual ---
 function MesasWidget({ mesas }) {
   if (!mesas) return null;
   const items = [
@@ -205,7 +205,6 @@ function MesasWidget({ mesas }) {
         <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 12, color: "rgba(44,85,69,0.6)" }}>
           Total: {mesas.total} mesas
         </span>
-        {/* Barra proporcional */}
         <div className="flex rounded-full overflow-hidden" style={{ width: 100, height: 6 }}>
           {items.map((it) => (
             <div
@@ -258,7 +257,7 @@ function MesasWidget({ mesas }) {
   );
 }
 
-// ─── Caja activa widget ───────────────────────────────────────────────────────
+// --- Caja activa widget ---
 function CajaWidget({ caja }) {
   if (!caja) return (
     <div className="flex flex-col items-center justify-center py-6 gap-2">
@@ -325,7 +324,7 @@ function CajaWidget({ caja }) {
   );
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
+// --- Pagina principal ---
 export default function DashboardPage() {
   const [data, setData]       = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -370,14 +369,12 @@ export default function DashboardPage() {
     />
   );
 
-  // Preparar datos del gráfico de área
   const ventasPorDia = (data?.ventas_por_dia ?? []).map((d) => ({
     fecha:   formatFecha(d.fecha),
     total:   Number(d.total),
     ordenes: d.ordenes,
   }));
 
-  // Preparar datos del pie de métodos de pago
   const metodosPago = (data?.ventas_por_metodo ?? []).map((m) => ({
     name:  METODO_LABELS[m.metodo_pago] ?? m.metodo_pago,
     value: Number(m.total),
@@ -399,7 +396,6 @@ export default function DashboardPage() {
 
       <div className="flex flex-col gap-5">
 
-        {/* Header con fecha y botón recargar */}
         <div className="flex items-center justify-between">
           <p
             style={{
@@ -433,7 +429,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* ── Fila 1: KPIs ── */}
+        {/* Fila 1: KPIs */}
         <div className="grid grid-cols-2 gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
           <KPICard
             titulo="Ventas hoy"
@@ -442,6 +438,18 @@ export default function DashboardPage() {
             icono={TrendingUp}
             acento
             delay={0}
+          />
+          <KPICard
+            titulo="Ganancias del mes"
+            valor={formatSoles(data?.ventas?.mes ?? 0)}
+            icono={TrendingUp}
+            delay={20}
+          />
+          <KPICard
+            titulo="Ganancias del año"
+            valor={formatSoles(data?.ventas?.anio ?? 0)}
+            icono={TrendingUp}
+            delay={40}
           />
           <KPICard
             titulo="Órdenes abiertas"
@@ -466,10 +474,9 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* ── Fila 2: Gráfico ventas + Métodos de pago ── */}
+        {/* Fila 2: Grafico ventas + Metodos de pago */}
         <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 340px" }}>
 
-          {/* Área chart ventas por día */}
           <Card titulo="Ventas de los últimos días">
             {ventasPorDia.length === 0 ? (
               <div className="flex items-center justify-center" style={{ height: 200 }}>
@@ -519,7 +526,6 @@ export default function DashboardPage() {
             )}
           </Card>
 
-          {/* Pie métodos de pago */}
           <Card titulo="Métodos de pago">
             {metodosPago.length === 0 ? (
               <div className="flex items-center justify-center" style={{ height: 200 }}>
@@ -553,7 +559,6 @@ export default function DashboardPage() {
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                {/* Leyenda manual */}
                 <div className="flex flex-col gap-2 mt-2">
                   {metodosPago.map((m) => (
                     <div key={m.name} className="flex items-center justify-between">
@@ -572,10 +577,9 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* ── Fila 3: Top productos + Mesas + Caja activa ── */}
+        {/* Fila 3: Top productos + Mesas + Caja activa */}
         <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 260px 260px" }}>
 
-          {/* Top productos */}
           <Card titulo="Top productos hoy">
             {(data?.top_productos ?? []).length === 0 ? (
               <div className="flex items-center justify-center py-6">
@@ -628,12 +632,10 @@ export default function DashboardPage() {
             )}
           </Card>
 
-          {/* Estado de mesas */}
           <Card titulo="Estado de mesas">
             <MesasWidget mesas={data?.mesas} />
           </Card>
 
-          {/* Caja activa */}
           <Card titulo="Caja activa">
             <CajaWidget caja={data?.caja_activa} />
           </Card>

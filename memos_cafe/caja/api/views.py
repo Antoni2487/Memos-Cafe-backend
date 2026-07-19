@@ -1,4 +1,4 @@
-from rest_framework import mixins, status
+﻿from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
@@ -13,6 +13,7 @@ from memos_cafe.caja.api.serializers import (
     ComprobanteWriteSerializer,
     MovimientoCajaReadSerializer,
     MovimientoCajaSerializer,
+    NotaCreditoWriteSerializer,
     PagoReadSerializer,
     PagoWriteSerializer,
 )
@@ -143,10 +144,18 @@ class PagoViewSet(
 
     @action(detail=True, methods=["post"], url_path="anular", permission_classes=[EsAdmin])
     def anular(self, request, pk=None):
-        """POST /api/pagos/{id}/anular/ — solo admin."""
+        """POST /api/pagos/{id}/anular/ — solo admin. Requiere motivo
+        (genera nota de credito interna; la orden NO se reabre)."""
         pago = self.get_object()
+        serializer = NotaCreditoWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         try:
-            PagoService.anular_pago(pago)
+            PagoService.anular_pago(
+                pago,
+                motivo=serializer.validated_data["motivo"],
+                detalle=serializer.validated_data.get("detalle", ""),
+                usuario=request.user,
+            )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(PagoReadSerializer(pago).data)

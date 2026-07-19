@@ -32,6 +32,13 @@ const METODOS = [
 
 const TIPO_LABEL = { mesa: "Mesa", llevar: "Para llevar", delivery: "Delivery" };
 
+const MOTIVOS_NC = [
+    { value: "devolucion", label: "Devolución de dinero" },
+    { value: "error_cobro", label: "Error de cobro" },
+    { value: "reclamo", label: "Producto no conforme / reclamo" },
+    { value: "otro", label: "Otro" },
+];
+
 // ── Componentes base ──────────────────────────────────────────────────────────
 function Btn({ onClick, color, outline, children, disabled, full, size = "md" }) {
     const pad = size === "sm" ? "7px 14px" : "9px 18px";
@@ -516,6 +523,7 @@ function FilaPago({ pago, esAdmin, onAnular, onEmitirComprobante }) {
     const [expandido, setExpandido] = useState(false);
     const anulado = pago.estado === "anulado";
     const tieneComp = !!pago.comprobante;
+    const nc = pago.nota_credito;
 
     return (
         <>
@@ -647,6 +655,15 @@ function FilaPago({ pago, esAdmin, onAnular, onEmitirComprobante }) {
                                 </tfoot>
                             </table>
                         </div>
+                        {nc && (
+                            <div style={{
+                                marginTop: 10, padding: "8px 10px", borderRadius: 8,
+                                background: C.rojoPal, fontSize: 12, color: C.rojo
+                            }}>
+                                <strong>Nota de crédito:</strong> {nc.motivo_display}
+                                {nc.detalle ? ` — ${nc.detalle}` : ""} · {fmt(nc.monto)}
+                            </div>
+                        )}
                     </td>
                 </tr>
             )}
@@ -671,6 +688,9 @@ export default function CajaPage() {
     const [ordenCobrar, setOrdenCobrar] = useState(null);
     const [pagoComprobante, setPagoComprobante] = useState(null);
     const [pagoAnular, setPagoAnular] = useState(null);
+    const [motivoAnular, setMotivoAnular] = useState("devolucion");
+    const [detalleAnular, setDetalleAnular] = useState("");
+    const [errAnular, setErrAnular] = useState("");
 
     const [montoInicial, setMontoInicial] = useState("");
     const [montoFinal, setMontoFinal] = useState("");
@@ -686,6 +706,13 @@ export default function CajaPage() {
         setMontoInicial(""); setMontoFinal(""); setObsCierre("");
         setTipoMov("entrada"); setMontoMov(""); setMotivoMov("");
         setErrMsg("");
+    };
+
+    const cerrarModalAnular = () => {
+        setPagoAnular(null);
+        setMotivoAnular("devolucion");
+        setDetalleAnular("");
+        setErrAnular("");
     };
 
     const handleAbrir = async () => {
@@ -723,13 +750,26 @@ export default function CajaPage() {
 
     const handleAnularPago = async () => {
         if (!pagoAnular) return;
+        setErrAnular("");
+        if (motivoAnular === "otro" && !detalleAnular.trim()) {
+            setErrAnular("Para el motivo 'Otro' debes especificar un detalle.");
+            return;
+        }
         setAnulando(true);
         try {
-            await cajaService.anularPago(pagoAnular.id);
-            setPagoAnular(null);
+            await cajaService.anularPago(pagoAnular.id, {
+                motivo: motivoAnular,
+                detalle: detalleAnular,
+            });
+            cerrarModalAnular();
             recargar();
         } catch (e) {
-            alert(e.response?.data?.detail ?? "Error al anular el pago.");
+            setErrAnular(
+                e.response?.data?.motivo?.[0]
+                ?? e.response?.data?.detalle?.[0]
+                ?? e.response?.data?.detail
+                ?? "Error al anular el pago."
+            );
         } finally { setAnulando(false); }
     };
 
@@ -967,14 +1007,43 @@ export default function CajaPage() {
             )}
 
             {pagoAnular && (
-                <Modal titulo="¿Anular pago?" onCerrar={() => setPagoAnular(null)} ancho={380}>
-                    <p style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>
+                <Modal titulo="Anular pago — Nota de crédito" onCerrar={cerrarModalAnular} ancho={440}>
+                    <p style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
                         Se anulará el pago <strong>#{pagoAnular.id}</strong> de{" "}
                         <strong>{fmt(pagoAnular.monto)}</strong> (Orden #{pagoAnular.orden?.id}).
-                        Se registrará automáticamente una salida de caja por devolución.
+                        La orden <strong>no se reabrirá</strong> — si el cliente necesita pagar
+                        de nuevo, se creará una orden nueva.
                     </p>
+
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.verde, marginBottom: 8 }}>
+                        Motivo de la anulación *
+                    </label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                        {MOTIVOS_NC.map(({ value, label }) => (
+                            <button key={value} onClick={() => setMotivoAnular(value)}
+                                style={{
+                                    padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                                    border: `2px solid ${motivoAnular === value ? C.rojo : C.borde}`,
+                                    background: motivoAnular === value ? C.rojoPal : "white",
+                                    fontWeight: 600, fontSize: 13, textAlign: "left",
+                                    color: motivoAnular === value ? C.rojo : "#555",
+                                }}>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <Campo
+                        label={motivoAnular === "otro" ? "Detalle *" : "Detalle (opcional)"}
+                        value={detalleAnular}
+                        onChange={setDetalleAnular}
+                        placeholder="Ej: Cliente pidió devolución por error en el pedido"
+                    />
+
+                    <ErrMsg msg={errAnular} />
+
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <Btn outline color={C.gris} onClick={() => setPagoAnular(null)} full>
+                        <Btn outline color={C.gris} onClick={cerrarModalAnular} full>
                             Cancelar
                         </Btn>
                         <Btn color={C.rojo} onClick={handleAnularPago} disabled={anulando} full>
@@ -1064,4 +1133,3 @@ export default function CajaPage() {
         </>
     );
 }
-

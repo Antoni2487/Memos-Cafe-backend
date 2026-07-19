@@ -3,7 +3,7 @@
 from django.db import IntegrityError, transaction
 from django.db.models import Sum
 
-from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, Pago
+from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, NotaCredito, Pago
 from memos_cafe.ordenes.models import Orden
 
 UMBRAL_DIFERENCIA_SIN_OBSERVACION = Decimal("5.00")
@@ -130,7 +130,12 @@ class PagoService:
 
     @staticmethod
     @transaction.atomic
-    def anular_pago(pago: Pago) -> Pago:
+    def anular_pago(pago: Pago, motivo: str, usuario, detalle: str = "") -> Pago:
+        """Anula un pago y genera una nota de credito interna con el motivo.
+        La orden asociada NUNCA se reabre automaticamente: si el cliente
+        necesita pagar de nuevo, se crea una orden nueva. Esto evita que
+        ordenes ya cerradas reaparezcan mezcladas en 'por cobrar' sin que
+        nadie lo decida explicitamente."""
         if pago.estado == Pago.Estado.ANULADO:
             raise ValueError("Este pago ya esta anulado.")
 
@@ -140,21 +145,20 @@ class PagoService:
 
         pago.anular()
 
+        NotaCredito.objects.create(
+            pago=pago,
+            motivo=motivo,
+            detalle=detalle,
+            monto=pago.monto,
+            usuario=usuario,
+        )
+
         MovimientoCaja.objects.create(
             caja=pago.caja,
             tipo=MovimientoCaja.Tipo.SALIDA,
             monto=pago.monto,
-            motivo=f"Devolucion por anulacion de pago #{pago.id} - Orden #{orden.id}",
+            motivo=f"Nota de credito - Pago #{pago.id} - Orden #{orden.id} - {motivo}",
         )
-
-        if orden.estado == Orden.Estado.CERRADA:
-            pagado_restante = (
-                Pago.objects
-                .filter(orden=orden, estado=Pago.Estado.COMPLETADO)
-                .aggregate(total=Sum("monto"))["total"] or Decimal("0")
-            )
-            if pagado_restante < orden.total:
-                orden.reabrir()
 
         return pago
 

@@ -1,5 +1,6 @@
 ﻿import logging
 import io
+from datetime import timedelta
 from django.http import HttpResponse
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -17,7 +18,7 @@ from rest_framework.views import APIView
 from memos_cafe.caja.models import Caja
 
 logger = logging.getLogger("memos_cafe.reportes")
-from memos_cafe.caja.models import Pago
+from memos_cafe.caja.models import MovimientoCaja, Pago
 from memos_cafe.mesas.models import Mesa
 from memos_cafe.ordenes.models import DetalleOrden
 from memos_cafe.ordenes.models import Orden
@@ -27,7 +28,7 @@ from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero
 class DashboardView(APIView):
     """
     GET /api/dashboard/
-    KPIs del dÃ­a actual para el admin.
+    KPIs del dia actual para el admin.
     Solo admin.
     """
     permission_classes = [EsAdmin]
@@ -35,13 +36,13 @@ class DashboardView(APIView):
     def get(self, request):
         hoy = timezone.localdate()
 
-        # â”€â”€ Ã“rdenes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Ordenes --------------------------------------------------------
         ordenes_hoy = Orden.objects.filter(fecha_creacion__date=hoy)
         ordenes_abiertas = Orden.objects.filter(estado="abierta").count()
         ordenes_cerradas_hoy = ordenes_hoy.filter(estado="cerrada").count()
         ordenes_anuladas_hoy = ordenes_hoy.filter(estado="anulada").count()
 
-        # â”€â”€ Ventas del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Ventas del dia ---------------------------------------------------
         pagos_hoy = Pago.objects.filter(
             estado="completado",
             fecha__date=hoy,
@@ -56,7 +57,8 @@ class DashboardView(APIView):
             round(total_ventas / total_pagos, 2) if total_pagos > 0 else 0
         )
 
-        # Desglose por mÃ©todo de pago
+        # Desglose por metodo de pago (nombre de campo alineado con el
+        # frontend: ventas_por_metodo, top-level en la respuesta)
         ventas_por_metodo = list(
             pagos_hoy.values("metodo_pago")
             .annotate(
@@ -66,7 +68,42 @@ class DashboardView(APIView):
             .order_by("-total")
         )
 
-        # â”€â”€ Mesas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Ventas de los ultimos 7 dias (para el grafico de area) ----------
+        desde = hoy - timedelta(days=6)
+        ventas_por_dia_qs = (
+            Pago.objects.filter(estado="completado", fecha__date__gte=desde, fecha__date__lte=hoy)
+            .annotate(dia=TruncDate("fecha"))
+            .values("dia")
+            .annotate(
+                total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
+                ordenes=Count("orden", distinct=True),
+            )
+            .order_by("dia")
+        )
+        por_dia_map = {v["dia"]: v for v in ventas_por_dia_qs}
+        ventas_por_dia = []
+        for i in range(7):
+            dia = desde + timedelta(days=i)
+            registro = por_dia_map.get(dia)
+            ventas_por_dia.append({
+                "fecha": dia.isoformat(),
+                "total": registro["total"] if registro else 0,
+                "ordenes": registro["ordenes"] if registro else 0,
+            })
+
+        # -- Ganancias del mes y del ano --------------------------------------
+        inicio_mes = hoy.replace(day=1)
+        inicio_anio = hoy.replace(month=1, day=1)
+
+        ventas_mes = Pago.objects.filter(
+            estado="completado", fecha__date__gte=inicio_mes, fecha__date__lte=hoy
+        ).aggregate(total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()))["total"]
+
+        ventas_anio = Pago.objects.filter(
+            estado="completado", fecha__date__gte=inicio_anio, fecha__date__lte=hoy
+        ).aggregate(total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()))["total"]
+
+        # -- Mesas -------------------------------------------------------------
         mesas = Mesa.objects.filter(activo=True)
         resumen_mesas = {
             "total": mesas.count(),
@@ -75,14 +112,19 @@ class DashboardView(APIView):
             "reservadas": mesas.filter(estado="reservada").count(),
         }
 
-        # â”€â”€ Caja activa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Caja activa ---------------------------------------------------------
         caja_activa = Caja.objects.get_sesion_abierta()
         caja_info = None
         if caja_activa:
             pagos_caja = caja_activa.pagos.filter(estado="completado")
-            ventas_turno = pagos_caja.aggregate(
+            ventas_pagos = pagos_caja.aggregate(
                 total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField())
             )["total"]
+            # Los movimientos manuales (entrada/salida) tambien afectan
+            # cuanto hay realmente en caja durante el turno; sin esto
+            # 'ventas_turno' no reflejaba salidas como compra de insumos.
+            movimientos_neto = MovimientoCaja.objects.neto_por_caja(caja_activa)
+            ventas_turno = ventas_pagos + movimientos_neto
             caja_info = {
                 "id": caja_activa.id,
                 "cajero": caja_activa.usuario.get_full_name() or caja_activa.usuario.email,
@@ -91,7 +133,7 @@ class DashboardView(APIView):
                 "ventas_turno": ventas_turno,
             }
 
-        # â”€â”€ Top 5 productos del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Top 5 productos del dia --------------------------------------------
         top_productos = list(
             DetalleOrden.objects.filter(
                 orden__estado="cerrada",
@@ -114,7 +156,11 @@ class DashboardView(APIView):
                 "total": total_ventas,
                 "ticket_promedio": ticket_promedio,
                 "por_metodo": ventas_por_metodo,
+                "mes": ventas_mes,
+                "anio": ventas_anio,
             },
+            "ventas_por_dia": ventas_por_dia,
+            "ventas_por_metodo": ventas_por_metodo,
             "mesas": resumen_mesas,
             "caja_activa": caja_info,
             "top_productos": top_productos,
@@ -830,3 +876,5 @@ class ReporteOrdenesExportView(APIView):
 
     def get(self, request):
         return ReporteOrdenesView().export_excel(request)
+
+

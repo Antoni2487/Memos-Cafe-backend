@@ -128,6 +128,39 @@ class Pago(models.Model):
         self.save(update_fields=["estado"])
 
 
+class NotaCredito(models.Model):
+    """Registro interno (no fiscal) que documenta por que se anulo un pago.
+    No reabre la orden asociada: si el negocio necesita volver a cobrar,
+    se crea una orden nueva. Esto deja trazabilidad clara de devoluciones
+    y errores de cobro, sin mezclar ordenes viejas en 'por cobrar'."""
+
+    class Motivo(models.TextChoices):
+        DEVOLUCION = "devolucion", "Devolución de dinero"
+        ERROR_COBRO = "error_cobro", "Error de cobro"
+        RECLAMO = "reclamo", "Producto no conforme / reclamo"
+        OTRO = "otro", "Otro"
+
+    pago = models.OneToOneField(Pago, on_delete=models.PROTECT, related_name="nota_credito")
+    motivo = models.CharField(max_length=20, choices=Motivo.choices)
+    detalle = models.CharField(max_length=255, blank=True)
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="notas_credito",
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "nota_credito"
+        verbose_name = "Nota de crédito"
+        verbose_name_plural = "Notas de crédito"
+        ordering = ["-fecha"]
+
+    def __str__(self):
+        return f"NC Pago #{self.pago_id} - {self.motivo} - S/.{self.monto}"
+
+
 class Comprobante(models.Model):
     class TipoComprobante(models.TextChoices):
         BOLETA = "boleta", "Boleta"

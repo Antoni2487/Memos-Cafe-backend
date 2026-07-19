@@ -690,6 +690,8 @@ export default function CajaPage() {
     const [guardando, setGuardando] = useState(false);
     const [errMsg, setErrMsg] = useState("");
     const [anulando, setAnulando] = useState(false);
+    const [motivoAnular, setMotivoAnular] = useState("devolucion");
+    const [detalleAnular, setDetalleAnular] = useState("");
 
     const limpiar = () => {
         setMontoInicial(""); setMontoFinal(""); setObsCierre("");
@@ -731,12 +733,28 @@ export default function CajaPage() {
         } finally { setGuardando(false); }
     };
 
+    const MOTIVOS_ANULACION = [
+    { value: "devolucion", label: "Devolución de dinero" },
+    { value: "error_cobro", label: "Error de cobro" },
+    { value: "reclamo", label: "Producto no conforme / reclamo" },
+    { value: "otro", label: "Otro" },
+];
+
     const handleAnularPago = async () => {
         if (!pagoAnular) return;
+        if (motivoAnular === "otro" && !detalleAnular.trim()) {
+            alert("Para el motivo 'Otro' debes especificar un detalle.");
+            return;
+        }
         setAnulando(true);
         try {
-            await cajaService.anularPago(pagoAnular.id);
+            await cajaService.anularPago(pagoAnular.id, {
+                motivo: motivoAnular,
+                detalle: detalleAnular.trim(),
+            });
             setPagoAnular(null);
+            setMotivoAnular("devolucion");
+            setDetalleAnular("");
             recargar();
         } catch (e) {
             alert(e.response?.data?.detail ?? "Error al anular el pago.");
@@ -972,12 +990,38 @@ export default function CajaPage() {
             {/* Confirm anular pago */}
             {pagoAnular && (
                 <Modal titulo="¿Anular pago?" onCerrar={() => setPagoAnular(null)} ancho={380}>
-                    <p style={{ fontSize: 13, color: "#555", marginBottom: 20 }}>
+                    <p style={{ fontSize: 13, color: "#555", marginBottom: 16 }}>
                         Se anulará el pago <strong>#{pagoAnular.id}</strong> de{" "}
                         <strong>{fmt(pagoAnular.monto)}</strong> (Orden #{pagoAnular.orden?.id}).
                         Se registrará automáticamente una salida de caja por devolución.
                     </p>
-                    <div style={{ display: "flex", gap: 10 }}>
+
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.verde, marginBottom: 6 }}>
+                        Motivo de anulación
+                    </label>
+                    <select
+                        value={motivoAnular}
+                        onChange={(e) => setMotivoAnular(e.target.value)}
+                        style={{
+                            width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13,
+                            border: `1px solid ${C.borde}`, marginBottom: 14, boxSizing: "border-box",
+                        }}
+                    >
+                        {MOTIVOS_ANULACION.map(m => (
+                            <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                    </select>
+
+                    {motivoAnular === "otro" && (
+                        <Campo
+                            label="Detalle (obligatorio) *"
+                            value={detalleAnular}
+                            onChange={setDetalleAnular}
+                            placeholder="Especifica el motivo..."
+                        />
+                    )}
+
+                    <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                         <Btn outline color={C.gris} onClick={() => setPagoAnular(null)} full>
                             Cancelar
                         </Btn>
