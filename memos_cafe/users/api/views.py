@@ -1,4 +1,7 @@
+import logging
+
 from django.contrib.auth.models import Group
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
@@ -6,12 +9,15 @@ from rest_framework.mixins import UpdateModelMixin, CreateModelMixin, DestroyMod
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.viewsets import GenericViewSet
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairView
 
 from memos_cafe.users.models import User
 from memos_cafe.users.api.serializers import CustomTokenObtainPairSerializer
 from memos_cafe.users.api.serializers import UserSerializer
 from memos_cafe.utils.permissions import EsAdmin, TodosAutenticados
+
+logger = logging.getLogger("memos_cafe.auth")
 
 
 class LoginRateThrottle(AnonRateThrottle):
@@ -25,15 +31,59 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     throttle_classes  = [LoginRateThrottle]
 
     def post(self, request, *args, **kwargs):
+        email_intento = request.data.get("email", "")
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
         except Exception:
+            # Fallo de input / intento de login invalido -- no se distingue
+            # "usuario no existe" de "password incorrecta" en la respuesta
+            # (evita enumeracion de usuarios), pero si en el log interno.
+            logger.warning(
+                "Login FALLIDO | email=%s | ip=%s",
+                email_intento, request.META.get("REMOTE_ADDR"),
+            )
             return Response(
                 {"detail": "Credenciales inválidas."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+        user = serializer.user
+        user.last_login = timezone.now()
+        user.save(update_fields=["last_login"])
+        logger.info(
+            "Login exitoso | usuario=%s | ip=%s",
+            user.email, request.META.get("REMOTE_ADDR"),
+        )
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class CustomTokenBlacklistView(TokenBlacklistView):
+    """POST /api/auth/logout/ — invalida el refresh token y deja registro
+    del cierre de sesion (quien, cuando).
+
+    TokenBlacklistView no exige un access token valido (solo necesita el
+    refresh en el body), asi que request.user siempre es anonimo aca --
+    el usuario se identifica decodificando el propio refresh token."""
+
+    def post(self, request, *args, **kwargs):
+        # Se decodifica el refresh ANTES de blacklistearlo -- una vez que
+        # super().post() lo invalida, reconstruir RefreshToken(...) desde
+        # el mismo string lanza TokenError("Token is blacklisted").
+        usuario = "desconocido"
+        try:
+            token = RefreshToken(request.data.get("refresh"))
+            usuario = User.objects.get(pk=token["user_id"]).email
+        except Exception:
+            pass
+
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            logger.info(
+                "Logout | usuario=%s | ip=%s",
+                usuario, request.META.get("REMOTE_ADDR"),
+            )
+        return response
 
 
 class UserViewSet(
