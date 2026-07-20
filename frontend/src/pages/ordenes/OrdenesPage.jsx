@@ -7,6 +7,7 @@ import { TIPO_ORDEN, PLATAFORMA_DELIVERY } from "../../utils/constants";
 import { formatDateTime } from "../../utils/formatters";
 import StatusBadge from "../../components/common/StatusBadge";
 import { ConfirmDialog } from "../../components/common/Modals";
+import { SearchBar } from "../../components/common";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 
 const PLATAFORMA_OPCIONES = [
@@ -86,9 +87,9 @@ function ProductoCard({ item, esPromo = false, onClick }) {
       onClick={() => onClick(item, esPromo)}
       style={{
         background: "white", border: `1.5px solid ${COLOR.borde}`,
-        borderRadius: 10, padding: "12px 10px", cursor: "pointer",
+        borderRadius: 10, padding: "10px 10px 12px", cursor: "pointer",
         display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4,
-        textAlign: "left", transition: "all 0.15s", width: "100%",
+        textAlign: "left", transition: "all 0.15s", width: "100%", overflow: "hidden",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = COLOR.verde;
@@ -99,6 +100,20 @@ function ProductoCard({ item, esPromo = false, onClick }) {
         e.currentTarget.style.boxShadow = "none";
       }}
     >
+      {item.imagen ? (
+        <img src={item.imagen} alt={item.nombre}
+          style={{ width: "100%", height: 72, objectFit: "cover", borderRadius: 8, marginBottom: 2 }} />
+      ) : (
+        <div style={{
+          width: "100%", height: 72, borderRadius: 8, marginBottom: 2,
+          background: esPromo ? "rgba(201,168,76,0.14)" : COLOR.verdePal,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: "'Playfair Display',Georgia,serif", fontSize: 22, fontWeight: 700,
+          color: esPromo ? COLOR.dorado : COLOR.verde,
+        }}>
+          {item.nombre.charAt(0).toUpperCase()}
+        </div>
+      )}
       {esPromo && (
         <span style={{ fontSize: 10, fontWeight: 700, color: COLOR.dorado,
           textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -114,6 +129,108 @@ function ProductoCard({ item, esPromo = false, onClick }) {
         S/ {precio.toFixed(2)}
       </span>
     </button>
+  );
+}
+
+// ─── Selector de catálogo: búsqueda + tabs productos/promociones ──────────────
+function CatalogoSelector({ productos, promociones, onAgregar, gridMinWidth = 150 }) {
+  const [busqueda, setBusqueda]       = useState("");
+  const [tab, setTab]                 = useState("productos");
+  const [categFiltro, setCategFiltro] = useState("todos");
+
+  const hayPromos = promociones.length > 0;
+  const tabActiva = hayPromos ? tab : "productos";
+
+  const categorias = [
+    "todos",
+    ...new Set(productos.map((p) => p.categoria_nombre).filter(Boolean)),
+  ];
+
+  const termino = busqueda.trim().toLowerCase();
+  const coincide = (nombre) => !termino || nombre.toLowerCase().includes(termino);
+
+  const productosFiltrados = productos.filter((p) =>
+    (categFiltro === "todos" || p.categoria_nombre === categFiltro) && coincide(p.nombre)
+  );
+  const promocionesFiltradas = promociones.filter((p) => coincide(p.nombre));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <SearchBar
+        placeholder="Buscar producto o promoción..."
+        onBuscar={setBusqueda}
+        className="w-full"
+      />
+
+      {hayPromos && (
+        <div style={{ display: "flex", gap: 8, background: COLOR.gris,
+          borderRadius: 10, padding: 4, width: "fit-content" }}>
+          {[
+            { value: "productos", label: "Productos" },
+            { value: "promociones", label: "Promociones" },
+          ].map(({ value, label }) => (
+            <button key={value} onClick={() => setTab(value)}
+              style={{
+                padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                fontFamily: "'Lato',sans-serif", fontSize: 12.5, fontWeight: 600,
+                background: tabActiva === value ? COLOR.verde : "transparent",
+                color: tabActiva === value ? "white" : "rgba(44,85,69,0.6)",
+                transition: "all 0.15s",
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tabActiva === "productos" ? (
+        <>
+          {categorias.length > 1 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {categorias.map((cat) => (
+                <button key={cat} onClick={() => setCategFiltro(cat)}
+                  style={{
+                    padding: "5px 12px", borderRadius: 20, border: "none", cursor: "pointer",
+                    fontFamily: "'Lato',sans-serif", fontSize: 12, fontWeight: 600,
+                    background: categFiltro === cat ? COLOR.verde : COLOR.verdePal,
+                    color: categFiltro === cat ? "white" : COLOR.verde,
+                    transition: "all 0.15s",
+                    textTransform: cat === "todos" ? "none" : "capitalize",
+                  }}>
+                  {cat === "todos" ? "Todos" : cat}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {productosFiltrados.length === 0 ? (
+            <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 13, color: "#999" }}>
+              {termino ? "Sin productos que coincidan con la búsqueda" : "Sin productos cargados aún"}
+            </p>
+          ) : (
+            <div style={{ display: "grid",
+              gridTemplateColumns: `repeat(auto-fill, minmax(${gridMinWidth}px, 1fr))`, gap: 10 }}>
+              {productosFiltrados.map((p) => (
+                <ProductoCard key={`prod-${p.id}`} item={p} esPromo={false} onClick={onAgregar} />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        promocionesFiltradas.length === 0 ? (
+          <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 13, color: "#999" }}>
+            {termino ? "Sin promociones que coincidan con la búsqueda" : "Sin promociones disponibles"}
+          </p>
+        ) : (
+          <div style={{ display: "grid",
+            gridTemplateColumns: `repeat(auto-fill, minmax(${gridMinWidth}px, 1fr))`, gap: 10 }}>
+            {promocionesFiltradas.map((p) => (
+              <ProductoCard key={`promo-${p.id}`} item={p} esPromo={true} onClick={onAgregar} />
+            ))}
+          </div>
+        )
+      )}
+    </div>
   );
 }
 
@@ -141,9 +258,6 @@ export default function OrdenesPage() {
   const [errForm, setErrForm]         = useState({});
   const [creando, setCreando]         = useState(false);
   const [exitoMsg, setExitoMsg]       = useState("");
-
-  // Filtro catálogo
-  const [categFiltro, setCategFiltro] = useState("todos");
 
   // Anular
   const [anularTarget, setAnularTarget] = useState(null);
@@ -188,24 +302,6 @@ export default function OrdenesPage() {
     const iv = setInterval(cargarOrdenes, 5000);
     return () => clearInterval(iv);
   }, []);
-
-  // ── Catálogo ─────────────────────────────────────────────────────────────────
-  const CATEG_PROMOS = "__promociones__";
-  const categorias = [
-    "todos",
-    ...new Set(productos.map((p) => p.categoria_nombre).filter(Boolean)),
-    ...(promociones.length > 0 ? [CATEG_PROMOS] : []),
-  ];
-
-  const productosFiltrados = categFiltro === "todos"
-    ? productos
-    : categFiltro === CATEG_PROMOS
-      ? []
-      : productos.filter((p) => p.categoria_nombre === categFiltro);
-
-  const promocionesFiltradas = (categFiltro === "todos" || categFiltro === CATEG_PROMOS)
-    ? promociones
-    : [];
 
   // ── Manejo de items ───────────────────────────────────────────────────────────
   const agregarItem = (item, esPromo) => {
@@ -497,41 +593,11 @@ export default function OrdenesPage() {
           {/* Catálogo productos */}
           <div style={estilos.seccion}>
             <p style={estilos.seccionLabel}>Catálogo</p>
-
-            {/* Filtro categorías */}
-            {categorias.length > 1 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-                {categorias.map((cat) => (
-                  <button key={cat} onClick={() => setCategFiltro(cat)}
-                    style={{
-                      padding: "5px 12px", borderRadius: 20, border: "none", cursor: "pointer",
-                      fontFamily: "'Lato',sans-serif", fontSize: 12, fontWeight: 600,
-                      background: categFiltro === cat ? COLOR.verde : COLOR.verdePal,
-                      color: categFiltro === cat ? "white" : COLOR.verde,
-                      transition: "all 0.15s",
-                      textTransform: cat === "todos" ? "none" : "capitalize",
-                    }}>
-                    {cat === "todos" ? "Todos" : cat === CATEG_PROMOS ? "Promociones" : cat}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Grid productos */}
-            {productosFiltrados.length === 0 && promociones.length === 0 ? (
-              <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 13, color: "#999" }}>
-                Sin productos cargados aún
-              </p>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
-                {productosFiltrados.map((p) => (
-                  <ProductoCard key={`prod-${p.id}`} item={p} esPromo={false} onClick={agregarItem} />
-                ))}
-                {promocionesFiltradas.map((p) => (
-                  <ProductoCard key={`promo-${p.id}`} item={p} esPromo={true} onClick={agregarItem} />
-                ))}
-              </div>
-            )}
+            <CatalogoSelector
+              productos={productos}
+              promociones={promociones}
+              onAgregar={agregarItem}
+            />
           </div>
         </div>
 
@@ -874,16 +940,12 @@ export default function OrdenesPage() {
           {/* Catálogo para agregar — solo en modo editar */}
           <div style={{ padding: "14px 16px", flex: 1, display: drawerModo === "ver" ? "none" : "block" }}>
             <p style={estilos.seccionLabel}>Agregar productos</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-              {productos.map((prod) => (
-                <ProductoCard key={`ep-${prod.id}`} item={prod} esPromo={false}
-                  onClick={agregarItemEditar} />
-              ))}
-              {promociones.map((promo) => (
-                <ProductoCard key={`epr-${promo.id}`} item={promo} esPromo={true}
-                  onClick={agregarItemEditar} />
-              ))}
-            </div>
+            <CatalogoSelector
+              productos={productos}
+              promociones={promociones}
+              onAgregar={agregarItemEditar}
+              gridMinWidth={130}
+            />
 
             {/* Items a agregar */}
             {itemsEditar.length > 0 && (
