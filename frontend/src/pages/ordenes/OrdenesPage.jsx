@@ -442,6 +442,8 @@ export default function OrdenesPage() {
     );
   };
 
+  const quitarItemEditar = (key) => setItemsEditar((prev) => prev.filter((i) => i.key !== key));
+
   const handleEliminarDetalle = async (detalleId, impreso) => {
     if (!ordenEditar) return;
     if (impreso) {
@@ -492,6 +494,10 @@ export default function OrdenesPage() {
   );
 
   const mesaSeleccionada = mesas.find((m) => m.id === mesaId);
+  // Los descartables son productos "de sistema" (categoría dedicada): no se
+  // navegan en el catálogo, se ofrecen como checkbox directo en la orden.
+  const descartables = productos.filter((p) => p.categoria_nombre === "Descartables");
+  const productosCatalogo = productos.filter((p) => p.categoria_nombre !== "Descartables");
   const drawerAncho = isMobile ? "100%" : 420;
 
   return (
@@ -617,7 +623,7 @@ export default function OrdenesPage() {
           <div style={estilos.seccion}>
             <p style={estilos.seccionLabel}>Catálogo</p>
             <CatalogoSelector
-              productos={productos}
+              productos={productosCatalogo}
               promociones={promociones}
               onAgregar={agregarItem}
             />
@@ -645,6 +651,25 @@ export default function OrdenesPage() {
                 : "Nueva orden"}
             </span>
           </div>
+
+          {/* Descartables — checkbox directo, no pasan por el catálogo */}
+          {descartables.length > 0 && (
+            <div style={{ padding: "10px 14px 0", display: "flex", gap: 16, flexWrap: "wrap" }}>
+              {descartables.map((d) => {
+                const key = `prod-${d.id}`;
+                const marcado = items.some((i) => i.key === key);
+                return (
+                  <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 6,
+                    fontFamily: "'Lato',sans-serif", fontSize: 12.5, fontWeight: 600,
+                    color: COLOR.verde, cursor: "pointer" }}>
+                    <input type="checkbox" checked={marcado}
+                      onChange={() => marcado ? quitarItem(key) : agregarItem(d, false)} />
+                    {d.nombre}
+                  </label>
+                );
+              })}
+            </div>
+          )}
 
           {/* Items */}
           <div style={{ padding: "12px 14px", minHeight: 200, maxHeight: isMobile ? "none" : 380, overflowY: isMobile ? "visible" : "auto" }}>
@@ -963,8 +988,27 @@ export default function OrdenesPage() {
           {/* Catálogo para agregar — solo en modo editar */}
           <div style={{ padding: "14px 16px", flex: 1, display: drawerModo === "ver" ? "none" : "block" }}>
             <p style={estilos.seccionLabel}>Agregar productos</p>
+
+            {descartables.length > 0 && (
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
+                {descartables.map((d) => {
+                  const key = `prod-${d.id}`;
+                  const marcado = itemsEditar.some((i) => i.key === key);
+                  return (
+                    <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 6,
+                      fontFamily: "'Lato',sans-serif", fontSize: 12.5, fontWeight: 600,
+                      color: COLOR.verde, cursor: "pointer" }}>
+                      <input type="checkbox" checked={marcado}
+                        onChange={() => marcado ? quitarItemEditar(key) : agregarItemEditar(d, false)} />
+                      {d.nombre}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+
             <CatalogoSelector
-              productos={productos}
+              productos={productosCatalogo}
               promociones={promociones}
               onAgregar={agregarItemEditar}
               gridMinWidth={130}
