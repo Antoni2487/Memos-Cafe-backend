@@ -11,7 +11,7 @@ function ModalBase({ children, onClose, maxWidth = "420px" }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 overflow-y-auto"
       style={{ backgroundColor: "rgba(0,0,0,0.4)", backdropFilter: "blur(2px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
@@ -21,6 +21,9 @@ function ModalBase({ children, onClose, maxWidth = "420px" }) {
           borderRadius: "14px",
           width: "100%",
           maxWidth,
+          maxHeight: "calc(100vh - 48px)",
+          display: "flex",
+          flexDirection: "column",
           boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
           overflow: "hidden",
         }}
@@ -141,7 +144,7 @@ export function FormModal({
     <ModalBase onClose={onCerrar} maxWidth={maxWidth}>
       {/* Header */}
       <div
-        className="flex items-center justify-between px-6 py-4"
+        className="flex items-center justify-between px-6 py-4 shrink-0"
         style={{ borderBottom: "1px solid rgba(44,85,69,0.1)" }}
       >
         <h3
@@ -168,14 +171,14 @@ export function FormModal({
       </div>
 
       {/* Formulario */}
-      <form onSubmit={handleSubmit}>
-        <div className="px-6 py-5 flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col min-h-0" style={{ flex: 1 }}>
+        <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto" style={{ flex: 1, minHeight: 0 }}>
           {children}
         </div>
 
         {/* Footer */}
         <div
-          className="flex gap-3 px-6 py-4"
+          className="flex gap-3 px-6 py-4 shrink-0"
           style={{ borderTop: "1px solid rgba(44,85,69,0.1)" }}
         >
           <button
@@ -214,7 +217,7 @@ export function DetailModal({ abierto, titulo, onCerrar, maxWidth = "480px", chi
   return (
     <ModalBase onClose={onCerrar} maxWidth={maxWidth}>
       <div
-        className="flex items-center justify-between px-6 py-4"
+        className="flex items-center justify-between px-6 py-4 shrink-0"
         style={{ borderBottom: "1px solid rgba(44,85,69,0.1)" }}
       >
         <h3
@@ -240,7 +243,7 @@ export function DetailModal({ abierto, titulo, onCerrar, maxWidth = "480px", chi
         </button>
       </div>
 
-      <div className="px-6 py-5 flex flex-col gap-3">
+      <div className="px-6 py-5 flex flex-col gap-3 overflow-y-auto" style={{ minHeight: 0 }}>
         {children}
       </div>
     </ModalBase>
