@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import Sidebar from "./Sidebar";
+import Sidebar from "./sidebar";
 import Navbar from "./Navbar";
 import useApiErrors from "../../hooks/useApiErrors";
 
