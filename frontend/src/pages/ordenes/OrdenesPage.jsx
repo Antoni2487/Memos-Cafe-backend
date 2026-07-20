@@ -7,6 +7,7 @@ import { TIPO_ORDEN, PLATAFORMA_DELIVERY } from "../../utils/constants";
 import { formatDateTime } from "../../utils/formatters";
 import StatusBadge from "../../components/common/StatusBadge";
 import { ConfirmDialog } from "../../components/common/Modals";
+import { useIsMobile } from "../../hooks/useMediaQuery";
 
 const PLATAFORMA_OPCIONES = [
   { value: PLATAFORMA_DELIVERY.RAPPI,      label: "Rappi" },
@@ -118,6 +119,8 @@ function ProductoCard({ item, esPromo = false, onClick }) {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function OrdenesPage() {
+  const isMobile = useIsMobile();
+
   // Datos
   const [ordenes, setOrdenes]         = useState([]);
   const [mesas, setMesas]             = useState([]);
@@ -381,12 +384,13 @@ export default function OrdenesPage() {
   );
 
   const mesaSeleccionada = mesas.find((m) => m.id === mesaId);
+  const drawerAncho = isMobile ? "100%" : 420;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
       {/* ── Encabezado ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between",
         borderBottom: `1px solid ${COLOR.borde}`, paddingBottom: 16 }}>
         <div>
           <h2 style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: "1.5rem",
@@ -405,7 +409,11 @@ export default function OrdenesPage() {
       </div>
 
       {/* ── Panel principal: catálogo + orden ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 20, alignItems: "start" }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 380px",
+        gap: 20, alignItems: "start"
+      }}>
 
         {/* ── Panel izquierdo: catálogo ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -454,8 +462,8 @@ export default function OrdenesPage() {
           {tipoOrden === TIPO_ORDEN.DELIVERY && (
             <div style={estilos.seccion}>
               <p style={estilos.seccionLabel}>Datos del delivery</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div style={{ gridColumn: "1 / -1" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+                <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                   <label style={estilos.inputLabel}>Plataforma *</label>
                   <select value={plataforma} onChange={e => setPlataforma(e.target.value)} style={estilos.select}>
                     <option value="">— Seleccioná —</option>
@@ -464,7 +472,7 @@ export default function OrdenesPage() {
                   {errForm.plataforma && <p style={estilos.errorTxt}>{errForm.plataforma}</p>}
                 </div>
                 {plataforma === PLATAFORMA_DELIVERY.OTRO && (
-                  <div style={{ gridColumn: "1 / -1" }}>
+                  <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                     <label style={estilos.inputLabel}>Nombre de plataforma *</label>
                     <input value={plataformaOtra} onChange={e => setPlataformaOtra(e.target.value)} style={estilos.input} />
                     {errForm.plataformaOtra && <p style={estilos.errorTxt}>{errForm.plataformaOtra}</p>}
@@ -478,7 +486,7 @@ export default function OrdenesPage() {
                   <label style={estilos.inputLabel}>Teléfono</label>
                   <input value={clienteTelefono} onChange={e => setClienteTelefono(e.target.value)} style={estilos.input} placeholder="999 999 999" />
                 </div>
-                <div style={{ gridColumn: "1 / -1" }}>
+                <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                   <label style={estilos.inputLabel}>Dirección de entrega</label>
                   <input value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)} style={estilos.input} placeholder="Av. ..." />
                 </div>
@@ -528,9 +536,12 @@ export default function OrdenesPage() {
         </div>
 
         {/* ── Panel derecho: orden ── */}
-        <div style={{ position: "sticky", top: 20, background: "white",
+        <div style={{
+          position: isMobile ? "static" : "sticky", top: isMobile ? undefined : 20,
+          background: "white",
           border: `1.5px solid ${COLOR.borde}`, borderRadius: 14,
-          boxShadow: "0 4px 20px rgba(44,85,69,0.08)", overflow: "hidden" }}>
+          boxShadow: "0 4px 20px rgba(44,85,69,0.08)", overflow: "hidden"
+        }}>
 
           {/* Header panel */}
           <div style={{ background: COLOR.verde, padding: "14px 18px",
@@ -547,7 +558,7 @@ export default function OrdenesPage() {
           </div>
 
           {/* Items */}
-          <div style={{ padding: "12px 14px", minHeight: 200, maxHeight: 380, overflowY: "auto" }}>
+          <div style={{ padding: "12px 14px", minHeight: 200, maxHeight: isMobile ? "none" : 380, overflowY: isMobile ? "visible" : "auto" }}>
             {items.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
                 justifyContent: "center", height: 160, gap: 8, color: "rgba(44,85,69,0.35)" }}>
@@ -655,100 +666,111 @@ export default function OrdenesPage() {
             Sin órdenes registradas hoy
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "rgba(44,85,69,0.04)" }}>
-                {["#", "Tipo", "Mesa / Cliente", "Ítems", "Total", "Estado", "Hora", "Acciones"].map(h => (
-                  <th key={h} style={{ padding: "10px 14px", textAlign: "left",
-                    fontFamily: "'Lato',sans-serif", fontSize: 11, fontWeight: 700,
-                    color: "rgba(44,85,69,0.6)", textTransform: "uppercase",
-                    letterSpacing: "0.07em", borderBottom: `1px solid ${COLOR.borde}` }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ordenes.map((orden, idx) => (
-                <tr key={orden.id}
-                  style={{ background: idx % 2 === 0 ? "white" : "rgba(44,85,69,0.015)",
-                    borderBottom: `1px solid ${COLOR.borde}` }}>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
-                      fontWeight: 700, color: COLOR.verde }}>#{orden.id}</span>
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12,
-                      color: "#555" }}>{orden.tipo_orden_display || orden.tipo_orden}</span>
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#555" }}>
-                      {orden.mesa_numero ? `Mesa ${orden.mesa_numero}`
-                        : orden.cliente_nombre || orden.plataforma_delivery || "—"}
-                    </span>
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#555" }}>
-                      {orden.detalles?.length || 0}
-                    </span>
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
-                      fontWeight: 700, color: COLOR.verde }}>
-                      S/ {parseFloat(orden.total).toFixed(2)}
-                    </span>
-                  </td>
-                  <td style={estilos.td}>
-                    <StatusBadge estado={orden.estado} />
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 11, color: "#888" }}>
-                      {formatDateTime(orden.fecha_creacion)}
-                    </span>
-                  </td>
-                  <td style={estilos.td}>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        onClick={() => abrirVer(orden)}
-                        title="Ver detalle"
-                        style={estilos.btnAccion("rgba(44,85,69,0.6)", "rgba(44,85,69,0.06)")}>
-                        <Eye size={13} />
-                      </button>
-                      {orden.estado === "abierta" && (
-                        <>
-                          <button
-                            onClick={() => window.open(`/comanda/${orden.id}`, "_blank")}
-                            title="Ver comanda"
-                            style={estilos.btnAccion(COLOR.verde, "rgba(44,85,69,0.08)")}>
-                            <Printer size={13} />
-                          </button>
-                          <button
-                            onClick={() => abrirEditar(orden)}
-                            title="Editar orden"
-                            style={estilos.btnAccion(COLOR.dorado, "rgba(201,168,76,0.12)")}>
-                            <PenLine size={13} />
-                          </button>
-                          <button
-                            onClick={() => setAnularTarget(orden)}
-                            title="Anular orden"
-                            style={estilos.btnAccion(COLOR.rojo, COLOR.rojoPal)}>
-                            <Ban size={13} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
+              <thead>
+                <tr style={{ background: "rgba(44,85,69,0.04)" }}>
+                  {[
+                    { label: "#", cls: "" },
+                    { label: "Tipo", cls: "" },
+                    { label: "Mesa / Cliente", cls: "" },
+                    { label: "Ítems", cls: "hidden sm:table-cell" },
+                    { label: "Total", cls: "" },
+                    { label: "Estado", cls: "" },
+                    { label: "Hora", cls: "hidden sm:table-cell" },
+                    { label: "Acciones", cls: "" },
+                  ].map(({ label, cls }) => (
+                    <th key={label} className={cls} style={{ padding: "10px 14px", textAlign: "left",
+                      fontFamily: "'Lato',sans-serif", fontSize: 11, fontWeight: 700,
+                      color: "rgba(44,85,69,0.6)", textTransform: "uppercase",
+                      letterSpacing: "0.07em", borderBottom: `1px solid ${COLOR.borde}` }}>
+                      {label}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {ordenes.map((orden, idx) => (
+                  <tr key={orden.id}
+                    style={{ background: idx % 2 === 0 ? "white" : "rgba(44,85,69,0.015)",
+                      borderBottom: `1px solid ${COLOR.borde}` }}>
+                    <td style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
+                        fontWeight: 700, color: COLOR.verde }}>#{orden.id}</span>
+                    </td>
+                    <td style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12,
+                        color: "#555" }}>{orden.tipo_orden_display || orden.tipo_orden}</span>
+                    </td>
+                    <td style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#555" }}>
+                        {orden.mesa_numero ? `Mesa ${orden.mesa_numero}`
+                          : orden.cliente_nombre || orden.plataforma_delivery || "—"}
+                      </span>
+                    </td>
+                    <td className="hidden sm:table-cell" style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#555" }}>
+                        {orden.detalles?.length || 0}
+                      </span>
+                    </td>
+                    <td style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
+                        fontWeight: 700, color: COLOR.verde }}>
+                        S/ {parseFloat(orden.total).toFixed(2)}
+                      </span>
+                    </td>
+                    <td style={estilos.td}>
+                      <StatusBadge estado={orden.estado} />
+                    </td>
+                    <td className="hidden sm:table-cell" style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 11, color: "#888" }}>
+                        {formatDateTime(orden.fecha_creacion)}
+                      </span>
+                    </td>
+                    <td style={estilos.td}>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          onClick={() => abrirVer(orden)}
+                          title="Ver detalle"
+                          style={estilos.btnAccion("rgba(44,85,69,0.6)", "rgba(44,85,69,0.06)")}>
+                          <Eye size={13} />
+                        </button>
+                        {orden.estado === "abierta" && (
+                          <>
+                            <button
+                              onClick={() => window.open(`/comanda/${orden.id}`, "_blank")}
+                              title="Ver comanda"
+                              style={estilos.btnAccion(COLOR.verde, "rgba(44,85,69,0.08)")}>
+                              <Printer size={13} />
+                            </button>
+                            <button
+                              onClick={() => abrirEditar(orden)}
+                              title="Editar orden"
+                              style={estilos.btnAccion(COLOR.dorado, "rgba(201,168,76,0.12)")}>
+                              <PenLine size={13} />
+                            </button>
+                            <button
+                              onClick={() => setAnularTarget(orden)}
+                              title="Anular orden"
+                              style={estilos.btnAccion(COLOR.rojo, COLOR.rojoPal)}>
+                              <Ban size={13} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* ── Drawer editar orden ── */}
       {ordenEditar && (
         <div style={{
-          position: "fixed", top: 0, right: 0, bottom: 0, width: 420,
+          position: "fixed", top: 0, right: 0, bottom: 0, width: drawerAncho,
           background: "white", boxShadow: "-4px 0 30px rgba(0,0,0,0.12)",
           zIndex: 1000, display: "flex", flexDirection: "column", overflowY: "auto",
         }}>
@@ -914,7 +936,7 @@ export default function OrdenesPage() {
 
       {/* Total en modo ver */}
       {ordenEditar && drawerModo === "ver" && (
-        <div style={{ position: "fixed", bottom: 0, right: 0, width: 420,
+        <div style={{ position: "fixed", bottom: 0, right: 0, width: drawerAncho,
           padding: "14px 18px", background: "white",
           borderTop: `2px solid ${COLOR.borde}`, zIndex: 1001,
           display: "flex", justifyContent: "space-between", alignItems: "center" }}>
