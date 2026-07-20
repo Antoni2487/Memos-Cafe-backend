@@ -12,6 +12,7 @@ from memos_cafe.reportes.views import (
     ReporteVentasExportView,
     ReporteCajaExportView,
     ReporteProductosExportView,
+    HealthCheckView,
 )
 from memos_cafe.users.api.views import CustomTokenObtainPairView, UserViewSet
 
@@ -22,6 +23,8 @@ urlpatterns = [
     # Auth JWT
     path("auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
+    path("health/", HealthCheckView.as_view(), name="health-check"),
 
     # Users
     path("", include(router.urls)),

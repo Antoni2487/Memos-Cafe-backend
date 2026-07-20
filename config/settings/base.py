@@ -61,6 +61,7 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "drf_spectacular",
     "django_filters",
+    "auditlog", 
 ]
 
 LOCAL_APPS = [
@@ -114,6 +115,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "memos_cafe.utils.auditlog_middleware.JWTAuditlogMiddleware",    
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -331,4 +333,6 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Your stuff...
+AUDITLOG_INCLUDE_ALL_MODELS = False
+AUDITLOG_USE_TEXT_CHANGES_IF_JSON_IS_NONE = True
 # ------------------------------------------------------------------------------

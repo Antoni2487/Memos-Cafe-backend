@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from auditlog.registry import auditlog
 
 from memos_cafe.mesas.models import Mesa
 from memos_cafe.ordenes.managers import OrdenManager
@@ -148,3 +149,6 @@ class DetalleOrden(models.Model):
     def save(self, *args, **kwargs):
         self.subtotal = self.precio_unitario * self.cantidad
         super().save(*args, **kwargs)
+
+
+auditlog.register(Orden)

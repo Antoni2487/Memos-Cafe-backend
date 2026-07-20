@@ -1,4 +1,5 @@
 from django.db import models
+from auditlog.registry import auditlog
 
 from django.db import models
 
@@ -49,3 +50,5 @@ class Mesa(models.Model):
         self.estado = self.Estado.LIBRE
         self.fecha_baja = timezone.now()
         self.save(update_fields=["activo", "estado", "fecha_baja"])
+
+auditlog.register(Mesa)
