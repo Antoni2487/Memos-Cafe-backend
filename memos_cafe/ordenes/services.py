@@ -15,6 +15,15 @@ class OrdenService:
     """Orquesta la creacion y gestion de ordenes."""
 
     @staticmethod
+    def fecha_apertura_caja_actual():
+        """Fecha de apertura de la sesion de caja actualmente abierta, o
+        None si no hay ninguna. Encapsula el cruce hacia el dominio de
+        Caja para que OrdenViewSet no importe memos_cafe.caja.models
+        directamente (ver .importlinter)."""
+        caja = Caja.objects.get_sesion_abierta()
+        return caja.fecha_apertura if caja else None
+
+    @staticmethod
     @transaction.atomic
     def crear_orden(
         usuario,

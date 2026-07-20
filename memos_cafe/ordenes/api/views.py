@@ -43,10 +43,9 @@ class OrdenViewSet(
         # Se delimita por fecha_apertura de la caja abierta (no por fecha del día)
         # Esto es correcto con 2 turnos/día: el cajero del turno 2 no ve el turno 1
         if user.groups.filter(name="cajero").exists():
-            from memos_cafe.caja.models import Caja
-            caja = Caja.objects.get_sesion_abierta()  # reutiliza CajaManager existente
-            if caja:
-                return qs.filter(fecha_creacion__gte=caja.fecha_apertura)
+            fecha_apertura = OrdenService.fecha_apertura_caja_actual()
+            if fecha_apertura:
+                return qs.filter(fecha_creacion__gte=fecha_apertura)
             return qs.none()  # sin turno activo: vista vacía
 
         # Admin: todas las órdenes del día (todos los estados, todos los meseros)

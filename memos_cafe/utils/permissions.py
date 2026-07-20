@@ -70,7 +70,14 @@ class ModuloHabilitado(BasePermission):
         if user.groups.filter(name="admin").exists():
             return True
 
-        from memos_cafe.roles.models import PermisoRol
+        # apps.get_model en vez de "from memos_cafe.roles.models import
+        # PermisoRol": utils/ es una hoja compartida por todas las apps y
+        # no debe tener una dependencia de import en tiempo de compilacion
+        # hacia una app de negocio especifica (ver .importlinter). El
+        # registro de apps de Django resuelve el modelo en runtime sin
+        # crear ese acoplamiento estatico.
+        from django.apps import apps
+        PermisoRol = apps.get_model("roles", "PermisoRol")
 
         rol = user.groups.values_list("name", flat=True).first()
         if not rol:
