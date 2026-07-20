@@ -1,4 +1,5 @@
-﻿# memos_cafe/caja/models.py
+# memos_cafe/caja/models.py
+from typing import ClassVar
 from django.conf import settings
 from django.db import models
 
@@ -67,7 +68,7 @@ class MovimientoCaja(models.Model):
     motivo = models.CharField(max_length=200)
     fecha = models.DateTimeField(auto_now_add=True)
 
-    objects = MovimientoCajaManager()
+    objects: ClassVar[MovimientoCajaManager] = MovimientoCajaManager()
 
     class Meta:
         db_table = "movimiento_caja"
@@ -110,7 +111,7 @@ class Pago(models.Model):
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.COMPLETADO)
     fecha = models.DateTimeField(auto_now_add=True)
 
-    objects = PagoManager()
+    objects: ClassVar[PagoManager] = PagoManager()
 
     class Meta:
         db_table = "pago"

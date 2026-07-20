@@ -33,15 +33,25 @@ class OrdenViewSet(
         user = self.request.user
         qs = Orden.objects.con_detalles()
 
-        # Mesero: solo sus órdenes abiertas
+        # Mesero: todas sus propias órdenes del día (todos los estados)
+        # Incluye cerradas/anuladas para contexto y trazabilidad
         if user.groups.filter(name="mesero").exists():
-            return qs.filter(estado=Orden.Estado.ABIERTA, usuario=user)
+            from django.utils import timezone
+            return qs.filter(usuario=user, fecha_creacion__date=timezone.localdate())
 
-        # Cajero y admin: todas las abiertas + cerradas del día de hoy
-        # (necesario para historial de cobros y reportes de turno)
+        # Cajero: todas las órdenes del turno actual
+        # Se delimita por fecha_apertura de la caja abierta (no por fecha del día)
+        # Esto es correcto con 2 turnos/día: el cajero del turno 2 no ve el turno 1
+        if user.groups.filter(name="cajero").exists():
+            from memos_cafe.caja.models import Caja
+            caja = Caja.objects.get_sesion_abierta()  # reutiliza CajaManager existente
+            if caja:
+                return qs.filter(fecha_creacion__gte=caja.fecha_apertura)
+            return qs.none()  # sin turno activo: vista vacía
+
+        # Admin: todas las órdenes del día (todos los estados, todos los meseros)
         from django.utils import timezone
-        hoy = timezone.localdate()
-        return qs.filter(fecha_creacion__date=hoy)
+        return qs.filter(fecha_creacion__date=timezone.localdate())
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:

@@ -266,6 +266,11 @@ export default function OrdenesPage() {
       }
       const { data } = await ordenesService.crear(payload);
       setOrdenes((prev) => [data, ...prev]);
+      // Actualización optimista: la mesa ya está ocupada en la BD,
+      // reflejarlo inmediatamente en el estado local sin esperar el polling.
+      if (tipoOrden === TIPO_ORDEN.MESA && mesaId) {
+        setMesas((prev) => prev.map((m) => m.id === mesaId ? { ...m, estado: "ocupada" } : m));
+      }
       resetForm();
       setExitoMsg(`Orden #${data.id} creada`);
       setTimeout(() => setExitoMsg(""), 3000);

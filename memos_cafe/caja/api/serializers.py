@@ -1,4 +1,4 @@
-﻿from rest_framework import serializers
+from rest_framework import serializers
 
 from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, NotaCredito, Pago
 from memos_cafe.ordenes.api.serializers import OrdenReadSerializer
@@ -28,9 +28,10 @@ class CerrarCajaSerializer(serializers.Serializer):
 
 class CajaReadSerializer(serializers.ModelSerializer):
     """Representación completa de una sesión de caja."""
-    usuario_nombre = serializers.CharField(
-        source="usuario.get_full_name", read_only=True
-    )
+    usuario_nombre = serializers.SerializerMethodField()
+
+    def get_usuario_nombre(self, obj):
+        return obj.usuario.name or obj.usuario.email
     total_ventas = serializers.SerializerMethodField()
     movimientos_neto = serializers.SerializerMethodField()
     esperado_en_caja = serializers.SerializerMethodField()
