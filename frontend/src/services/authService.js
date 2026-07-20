@@ -26,11 +26,28 @@ const authService = {
 
     // Decodifica el payload y guarda los datos del usuario
     const payload = decodeToken(access);
+    let roles = [];
     if (payload) {
-      localStorage.setItem("user_roles", JSON.stringify(payload.roles || []));
+      roles = payload.roles || [];
+      localStorage.setItem("user_roles", JSON.stringify(roles));
       localStorage.setItem("user_email", payload.email || "");
       localStorage.setItem("user_nombre", payload.nombre || payload.email || "");
       localStorage.setItem("user_id", payload.user_id || "");
+    }
+
+    // Cachea que módulos puede ver este usuario (PermisoRol), para que
+    // Sidebar/PrivateRoute decidan sin pegarle al backend en cada render.
+    // Si falla, queda sin módulos extra hasta el próximo login — admin
+    // igual tiene acceso total vía bypass en el backend y en tieneModulo.
+    try {
+      const { data } = await api.get("/roles/permisos/");
+      const permisos = Array.isArray(data) ? data : (data.results ?? []);
+      const modulosPermitidos = permisos
+        .filter((p) => roles.includes(p.rol) && p.puede_acceder)
+        .map((p) => p.modulo);
+      localStorage.setItem("user_modulos", JSON.stringify([...new Set(modulosPermitidos)]));
+    } catch {
+      localStorage.setItem("user_modulos", JSON.stringify([]));
     }
 
     return response.data;
@@ -43,6 +60,7 @@ const authService = {
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_nombre");
     localStorage.removeItem("user_id");
+    localStorage.removeItem("user_modulos");
     window.location.href = "/login";
   },
 
@@ -66,6 +84,16 @@ const authService = {
   hasRole: (role) => {
     const roles = JSON.parse(localStorage.getItem("user_roles") || "[]");
     return roles.includes(role);
+  },
+
+  // Admin siempre tiene acceso a todo, sin importar los toggles de
+  // PermisoRol — evita que un admin se bloquee a sí mismo. Mismo criterio
+  // que el backend (memos_cafe.utils.permissions.ModuloHabilitado).
+  tieneModulo: (modulo) => {
+    const roles = JSON.parse(localStorage.getItem("user_roles") || "[]");
+    if (roles.includes("admin")) return true;
+    const modulos = JSON.parse(localStorage.getItem("user_modulos") || "[]");
+    return modulos.includes(modulo);
   },
 };
 

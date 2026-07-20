@@ -16,26 +16,27 @@ import {
 import authService from "../../services/authService";
 
 const getNavItems = (userRoles) => [
-  { icon: LayoutDashboard, label: "Panel", path: userRoles.includes("admin") ? "/dashboard" : "/home", roles: null },
-  { icon: Table2, label: "Mesas", path: "/mesas", roles: null },
-  { icon: ClipboardList, label: "Órdenes", path: "/ordenes", roles: null },
-  { icon: Receipt, label: "Caja", path: "/caja", roles: ["admin", "cajero"] },
-  { icon: Package, label: "Productos", path: "/productos", roles: ["admin"] },
-  { icon: Tag, label: "Promociones", path: "/promociones", roles: ["admin"] },
-  { icon: Tag, label: "Categorias", path: "/categorias", roles: ["admin"] },
-  { icon: Boxes, label: "Insumos", path: "/insumos", roles: ["admin"] },
-  { icon: BarChart3, label: "Reportes", path: "/reportes", roles: ["admin"] },
-  { icon: Users, label: "Usuarios", path: "/usuarios", roles: ["admin"] },
-  { icon: ShieldCheck, label: "Roles y Permisos", path: "/roles", roles: ["admin"] },
+  { icon: LayoutDashboard, label: "Panel", path: userRoles.includes("admin") ? "/dashboard" : "/home", roles: null, modulo: null },
+  { icon: Table2, label: "Mesas", path: "/mesas", roles: null, modulo: "mesas" },
+  { icon: ClipboardList, label: "Órdenes", path: "/ordenes", roles: null, modulo: "ordenes" },
+  { icon: Receipt, label: "Caja", path: "/caja", roles: ["admin", "cajero"], modulo: "caja" },
+  { icon: Package, label: "Productos", path: "/productos", roles: ["admin"], modulo: null },
+  { icon: Tag, label: "Promociones", path: "/promociones", roles: ["admin"], modulo: null },
+  { icon: Tag, label: "Categorias", path: "/categorias", roles: ["admin"], modulo: null },
+  { icon: Boxes, label: "Insumos", path: "/insumos", roles: ["admin"], modulo: null },
+  { icon: BarChart3, label: "Reportes", path: "/reportes", roles: ["admin"], modulo: null },
+  { icon: Users, label: "Usuarios", path: "/usuarios", roles: ["admin"], modulo: null },
+  { icon: ShieldCheck, label: "Roles y Permisos", path: "/roles", roles: ["admin"], modulo: null },
 ];
 
 export default function Sidebar({ open = false, onClose }) {
   const navigate = useNavigate();
   const user = authService.getUser();
 
-  const visibleItems = getNavItems(user.roles).filter(({ roles }) => {
-    if (!roles) return true;
-    return roles.some((role) => authService.hasRole(role));
+  const visibleItems = getNavItems(user.roles).filter(({ roles, modulo }) => {
+    if (roles && !roles.some((role) => authService.hasRole(role))) return false;
+    if (modulo && !authService.tieneModulo(modulo)) return false;
+    return true;
   });
 
   const handleLogout = () => {

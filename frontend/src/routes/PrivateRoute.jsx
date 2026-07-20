@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import authService from "../services/authService";
 
-export default function PrivateRoute({ roles = [] }) {
+export default function PrivateRoute({ roles = [], modulo }) {
   if (!authService.isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
@@ -12,6 +12,10 @@ export default function PrivateRoute({ roles = [] }) {
     if (!tieneAcceso) {
       return <Navigate to="/" replace />;
     }
+  }
+
+  if (modulo && !authService.tieneModulo(modulo)) {
+    return <Navigate to="/" replace />;
   }
 
   return <Outlet />;
