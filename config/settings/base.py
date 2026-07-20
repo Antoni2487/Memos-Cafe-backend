@@ -119,6 +119,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "memos_cafe.utils.security_middleware.APICSPMiddleware",
 ]
 
 # STATIC
