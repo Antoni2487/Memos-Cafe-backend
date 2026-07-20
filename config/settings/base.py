@@ -192,6 +192,10 @@ DJANGO_ADMIN_FORCE_ALLAUTH = env.bool("DJANGO_ADMIN_FORCE_ALLAUTH", default=Fals
 #   ConsoleAppender   -> handler "console"        (StreamHandler)
 #   RollingFileAppender -> handler "archivo"      (RotatingFileHandler)
 #   Logger por nombre -> loggers por modulo
+# logs/ no esta versionado en git (solo existia localmente) -- RotatingFileHandler
+# no crea el directorio por si solo y explota en cualquier clon/build limpio
+# (Render, Docker, etc.) si no existe.
+(BASE_DIR / "logs").mkdir(parents=True, exist_ok=True)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
