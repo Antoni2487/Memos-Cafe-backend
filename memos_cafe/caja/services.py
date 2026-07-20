@@ -1,4 +1,5 @@
-﻿from decimal import Decimal
+﻿import logging
+from decimal import Decimal
 
 from django.db import IntegrityError, transaction
 from django.db.models import Sum
@@ -6,6 +7,8 @@ from django.db.models import Sum
 from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, NotaCredito, Pago
 from memos_cafe.ordenes.models import Orden
 from memos_cafe.utils.validators import es_dni_valido, es_ruc_valido
+
+logger = logging.getLogger("memos_cafe.caja")
 
 UMBRAL_DIFERENCIA_SIN_OBSERVACION = Decimal("5.00")
 
@@ -18,9 +21,14 @@ class CajaService:
         if Caja.objects.get_sesion_abierta():
             raise ValueError("Ya existe una sesion de caja abierta. Cierrela antes de abrir una nueva.")
         try:
-            return Caja.objects.create(usuario=usuario, monto_inicial=monto_inicial)
+            caja = Caja.objects.create(usuario=usuario, monto_inicial=monto_inicial)
         except IntegrityError:
             raise ValueError("Ya existe una sesion de caja abierta. Cierrela antes de abrir una nueva.")
+        logger.info(
+            "Caja #%s ABIERTA | usuario=%s | monto_inicial=%s",
+            caja.id, usuario, monto_inicial,
+        )
+        return caja
 
     @staticmethod
     @transaction.atomic
@@ -50,6 +58,10 @@ class CajaService:
             )
 
         caja.cerrar(monto_final=monto_final, observaciones=observaciones)
+        logger.info(
+            "Caja #%s CERRADA | monto_final=%s | esperado=%s | diferencia=%s",
+            caja.id, monto_final, esperado, diferencia,
+        )
         return caja
 
     @staticmethod
@@ -127,6 +139,10 @@ class PagoService:
         if total_pagado >= orden.total:
             orden.cerrar()
 
+        logger.info(
+            "Pago #%s PROCESADO | orden=#%s | metodo=%s | monto=%s | caja=#%s",
+            pago.id, orden.id, metodo_pago, monto, caja.id,
+        )
         return pago
 
     @staticmethod
@@ -161,6 +177,10 @@ class PagoService:
             motivo=f"Nota de credito - Pago #{pago.id} - Orden #{orden.id} - {motivo}",
         )
 
+        logger.warning(
+            "Pago #%s ANULADO | orden=#%s | monto=%s | usuario=%s | motivo=%s",
+            pago.id, orden.id, pago.monto, usuario, motivo,
+        )
         return pago
 
 
@@ -189,7 +209,7 @@ class ComprobanteService:
             if cliente_ruc_dni and not es_dni_valido(cliente_ruc_dni):
                 raise ValueError("El DNI debe tener exactamente 8 dígitos numéricos.")
 
-        return Comprobante.objects.create(
+        comprobante = Comprobante.objects.create(
             pago=pago,
             tipo=tipo,
             serie=serie,
@@ -198,3 +218,8 @@ class ComprobanteService:
             cliente_ruc_dni=cliente_ruc_dni,
             cliente_direccion=cliente_direccion,
         )
+        logger.info(
+            "Comprobante emitido | tipo=%s | serie=%s-%s | pago=#%s",
+            tipo, serie, numero, pago.id,
+        )
+        return comprobante

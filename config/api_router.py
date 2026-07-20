@@ -1,6 +1,6 @@
 ﻿from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from memos_cafe.reportes.views import (
     AlertasView,
@@ -15,7 +15,11 @@ from memos_cafe.reportes.views import (
     ReporteCajaExportView,
     ReporteProductosExportView,
 )
-from memos_cafe.users.api.views import CustomTokenObtainPairView, UserViewSet
+from memos_cafe.users.api.views import (
+    CustomTokenBlacklistView,
+    CustomTokenObtainPairView,
+    UserViewSet,
+)
 
 router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="user")
@@ -24,7 +28,7 @@ urlpatterns = [
     # Auth JWT
     path("auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("auth/logout/", TokenBlacklistView.as_view(), name="token_blacklist"),
+    path("auth/logout/", CustomTokenBlacklistView.as_view(), name="token_blacklist"),
 
     # Monitoreo
     path("health/", HealthCheckView.as_view(), name="health-check"),

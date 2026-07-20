@@ -3,6 +3,7 @@ import io
 from datetime import timedelta
 import django
 import psutil
+from django.contrib.auth import get_user_model
 from django.db import connection
 from django.http import HttpResponse
 import openpyxl
@@ -1043,6 +1044,8 @@ class HealthCheckView(APIView):
         # -- Actividad reciente -------------------------------------------------
         try:
             hoy = timezone.localdate()
+            User = get_user_model()
+            umbral_activos = timezone.now() - timedelta(minutes=30)
             health["actividad"] = {
                 "ordenes_hoy": Orden.objects.filter(
                     fecha_creacion__date=hoy
@@ -1052,6 +1055,11 @@ class HealthCheckView(APIView):
                 ).exists(),
                 "mesas_ocupadas": Mesa.objects.filter(
                     estado="ocupada", activo=True
+                ).count(),
+                # "Activo" = tuvo un login en los ultimos 30 min (no hay
+                # tracking de sesiones vivas al ser JWT sin estado).
+                "usuarios_activos_30min": User.objects.filter(
+                    last_login__gte=umbral_activos
                 ).count(),
             }
         except Exception as e:
