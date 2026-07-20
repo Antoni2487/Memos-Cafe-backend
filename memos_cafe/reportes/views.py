@@ -1,6 +1,9 @@
 ﻿import logging
 import io
 from datetime import timedelta
+import django
+import psutil
+from django.db import connection
 from django.http import HttpResponse
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -993,3 +996,81 @@ class AlertasView(APIView):
             a["fecha"] = a["fecha"].isoformat()
 
         return Response(alertas)
+
+
+class HealthCheckView(APIView):
+    """
+    GET /api/health/
+    Health check del sistema — logs, performance y estado general.
+    Accesible sin autenticación para monitoreo externo.
+    """
+    permission_classes = []  # público
+
+    def get(self, request):
+        health = {}
+
+        # -- Base de datos --------------------------------------------------
+        try:
+            connection.ensure_connection()
+            health["base_datos"] = {
+                "estado": "ok",
+                "motor": connection.vendor,
+            }
+        except Exception as e:
+            health["base_datos"] = {
+                "estado": "error",
+                "detalle": str(e),
+            }
+
+        # -- Performance: CPU y memoria --------------------------------------
+        health["performance"] = {
+            "cpu_porcentaje": psutil.cpu_percent(interval=0.1),
+            "memoria_total_mb": round(psutil.virtual_memory().total / 1024 / 1024, 2),
+            "memoria_usada_mb": round(psutil.virtual_memory().used / 1024 / 1024, 2),
+            "memoria_porcentaje": psutil.virtual_memory().percent,
+            "disco_total_gb": round(psutil.disk_usage("/").total / 1024 / 1024 / 1024, 2),
+            "disco_usado_gb": round(psutil.disk_usage("/").used / 1024 / 1024 / 1024, 2),
+            "disco_porcentaje": psutil.disk_usage("/").percent,
+        }
+
+        # -- Health del sistema -----------------------------------------------
+        health["sistema"] = {
+            "django_version": django.get_version(),
+            "estado": "ok",
+            "zona_horaria": str(timezone.get_current_timezone()),
+        }
+
+        # -- Actividad reciente -------------------------------------------------
+        try:
+            hoy = timezone.localdate()
+            health["actividad"] = {
+                "ordenes_hoy": Orden.objects.filter(
+                    fecha_creacion__date=hoy
+                ).count(),
+                "caja_abierta": Caja.objects.filter(
+                    estado="abierta"
+                ).exists(),
+                "mesas_ocupadas": Mesa.objects.filter(
+                    estado="ocupada", activo=True
+                ).count(),
+            }
+        except Exception as e:
+            health["actividad"] = {"estado": "error", "detalle": str(e)}
+
+        # -- Estado general -------------------------------------------------
+        estado_general = (
+            "ok" if health["base_datos"]["estado"] == "ok" else "degradado"
+        )
+
+        logger.info(
+            "Health check ejecutado | estado=%s | cpu=%s%% | mem=%s%%",
+            estado_general,
+            health["performance"]["cpu_porcentaje"],
+            health["performance"]["memoria_porcentaje"],
+        )
+
+        return Response({
+            "estado": estado_general,
+            "timestamp": timezone.now().isoformat(),
+            **health,
+        })

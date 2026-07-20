@@ -1,3 +1,4 @@
+from auditlog.registry import auditlog
 from django.db import models
 from django.utils import timezone
 
@@ -73,3 +74,8 @@ class Promocion(models.Model):
     def esta_vigente(self):
         hoy = timezone.localdate()
         return self.activo and self.fecha_inicio <= hoy <= self.fecha_fin
+
+
+auditlog.register(Categoria)
+auditlog.register(Producto)
+auditlog.register(Promocion)
