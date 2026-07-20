@@ -5,6 +5,7 @@ from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 from memos_cafe.reportes.views import (
     AlertasView,
     DashboardView,
+    HealthCheckView,
     ReporteCajaView,
     ReporteOrdenesExportView,
     ReporteOrdenesView,
@@ -24,6 +25,9 @@ urlpatterns = [
     path("auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("auth/logout/", TokenBlacklistView.as_view(), name="token_blacklist"),
+
+    # Monitoreo
+    path("health/", HealthCheckView.as_view(), name="health-check"),
 
     # Users
     path("alertas/", AlertasView.as_view(), name="alertas"),
