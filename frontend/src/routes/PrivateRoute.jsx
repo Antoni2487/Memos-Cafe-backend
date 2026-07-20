@@ -10,7 +10,7 @@ export default function PrivateRoute({ roles = [] }) {
     const userRoles = JSON.parse(localStorage.getItem("user_roles") || "[]");
     const tieneAcceso = roles.some((rol) => userRoles.includes(rol));
     if (!tieneAcceso) {
-      return <Navigate to="/dashboard" replace />;
+      return <Navigate to="/" replace />;
     }
   }
 

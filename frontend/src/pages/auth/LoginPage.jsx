@@ -183,7 +183,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await authService.login(email, password);
-      navigate("/dashboard");
+      navigate("/");
     } catch {
       setError("Correo o contraseña incorrectos.");
     } finally {
