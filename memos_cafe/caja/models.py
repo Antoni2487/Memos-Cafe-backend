@@ -1,8 +1,9 @@
 # memos_cafe/caja/models.py
+from typing import ClassVar
 from django.conf import settings
 from django.db import models
 
-from memos_cafe.caja.managers import CajaManager, PagoManager
+from memos_cafe.caja.managers import CajaManager, MovimientoCajaManager, PagoManager
 from memos_cafe.ordenes.models import Orden
 
 
@@ -27,17 +28,24 @@ class Caja(models.Model):
 
     class Meta:
         db_table = "caja"
-        verbose_name = "Sesión de caja"
+        verbose_name = "Sesion de caja"
         verbose_name_plural = "Sesiones de caja"
         ordering = ["-fecha_apertura"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["estado"],
+                condition=models.Q(estado="abierta"),
+                name="unica_caja_abierta",
+            ),
+        ]
 
     def __str__(self):
-        return f"Caja #{self.id} — {self.usuario} ({self.estado})"
+        return f"Caja #{self.id} - {self.usuario} ({self.estado})"
 
     def cerrar(self, monto_final, observaciones=""):
         from django.utils import timezone
         if self.estado != self.Estado.ABIERTA:
-            raise ValueError("Esta sesión de caja ya está cerrada.")
+            raise ValueError("Esta sesion de caja ya esta cerrada.")
         self.estado = self.Estado.CERRADA
         self.monto_final = monto_final
         self.observaciones = observaciones
@@ -60,6 +68,8 @@ class MovimientoCaja(models.Model):
     motivo = models.CharField(max_length=200)
     fecha = models.DateTimeField(auto_now_add=True)
 
+    objects: ClassVar[MovimientoCajaManager] = MovimientoCajaManager()
+
     class Meta:
         db_table = "movimiento_caja"
         verbose_name = "Movimiento de caja"
@@ -67,7 +77,7 @@ class MovimientoCaja(models.Model):
         ordering = ["-fecha"]
 
     def __str__(self):
-        return f"{self.tipo} S/.{self.monto} — {self.motivo}"
+        return f"{self.tipo} S/.{self.monto} - {self.motivo}"
 
 
 class Pago(models.Model):
@@ -81,7 +91,6 @@ class Pago(models.Model):
         YAPE = "yape", "Yape"
         PLIN = "plin", "Plin"
 
-    # ForeignKey en lugar de OneToOneField — permite múltiples pagos por orden
     orden = models.ForeignKey(
         Orden,
         on_delete=models.PROTECT,
@@ -102,7 +111,7 @@ class Pago(models.Model):
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.COMPLETADO)
     fecha = models.DateTimeField(auto_now_add=True)
 
-    objects = PagoManager()
+    objects: ClassVar[PagoManager] = PagoManager()
 
     class Meta:
         db_table = "pago"
@@ -120,12 +129,44 @@ class Pago(models.Model):
         self.save(update_fields=["estado"])
 
 
+class NotaCredito(models.Model):
+    """Registro interno (no fiscal) que documenta por que se anulo un pago.
+    No reabre la orden asociada: si el negocio necesita volver a cobrar,
+    se crea una orden nueva. Esto deja trazabilidad clara de devoluciones
+    y errores de cobro, sin mezclar ordenes viejas en 'por cobrar'."""
+
+    class Motivo(models.TextChoices):
+        DEVOLUCION = "devolucion", "Devolución de dinero"
+        ERROR_COBRO = "error_cobro", "Error de cobro"
+        RECLAMO = "reclamo", "Producto no conforme / reclamo"
+        OTRO = "otro", "Otro"
+
+    pago = models.OneToOneField(Pago, on_delete=models.PROTECT, related_name="nota_credito")
+    motivo = models.CharField(max_length=20, choices=Motivo.choices)
+    detalle = models.CharField(max_length=255, blank=True)
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="notas_credito",
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "nota_credito"
+        verbose_name = "Nota de crédito"
+        verbose_name_plural = "Notas de crédito"
+        ordering = ["-fecha"]
+
+    def __str__(self):
+        return f"NC Pago #{self.pago_id} - {self.motivo} - S/.{self.monto}"
+
+
 class Comprobante(models.Model):
     class TipoComprobante(models.TextChoices):
         BOLETA = "boleta", "Boleta"
         FACTURA = "factura", "Factura"
 
-    # Sigue OneToOne con Pago — un comprobante por pago
     pago = models.OneToOneField(Pago, on_delete=models.PROTECT, related_name="comprobante")
     tipo = models.CharField(max_length=10, choices=TipoComprobante.choices)
     serie = models.CharField(max_length=10)

@@ -1,24 +1,54 @@
+﻿from decimal import Decimal
 
-from decimal import Decimal
-
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 
-from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, Pago
+from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, NotaCredito, Pago
 from memos_cafe.ordenes.models import Orden
+from memos_cafe.utils.validators import es_dni_valido, es_ruc_valido
+
+UMBRAL_DIFERENCIA_SIN_OBSERVACION = Decimal("5.00")
 
 
 class CajaService:
 
     @staticmethod
+    @transaction.atomic
     def abrir_sesion(usuario, monto_inicial: Decimal) -> Caja:
         if Caja.objects.get_sesion_abierta():
-            raise ValueError("Ya existe una sesión de caja abierta. Ciérrela antes de abrir una nueva.")
-        return Caja.objects.create(usuario=usuario, monto_inicial=monto_inicial)
+            raise ValueError("Ya existe una sesion de caja abierta. Cierrela antes de abrir una nueva.")
+        try:
+            return Caja.objects.create(usuario=usuario, monto_inicial=monto_inicial)
+        except IntegrityError:
+            raise ValueError("Ya existe una sesion de caja abierta. Cierrela antes de abrir una nueva.")
 
     @staticmethod
+    @transaction.atomic
     def cerrar_sesion(monto_final: Decimal, observaciones: str = "") -> Caja:
-        caja = Caja.objects.get_sesion_abierta_o_error()
+        caja = Caja.objects.get_sesion_abierta_para_cierre()
+
+        ordenes_pendientes = Orden.objects.filter(estado=Orden.Estado.ABIERTA).count()
+        if ordenes_pendientes > 0:
+            raise ValueError(
+                f"Hay {ordenes_pendientes} orden(es) sin cobrar. "
+                f"Cobralas o anulalas antes de cerrar la caja."
+            )
+
+        total_ventas = (
+            Pago.objects
+            .filter(caja=caja, estado=Pago.Estado.COMPLETADO)
+            .aggregate(total=Sum("monto"))["total"] or Decimal("0")
+        )
+        movimientos_neto = MovimientoCaja.objects.neto_por_caja(caja)
+        esperado = caja.monto_inicial + total_ventas + movimientos_neto
+        diferencia = Decimal(monto_final) - esperado
+
+        if abs(diferencia) > UMBRAL_DIFERENCIA_SIN_OBSERVACION and not observaciones.strip():
+            raise ValueError(
+                f"La diferencia de caja (S/.{diferencia:.2f}) supera el margen permitido "
+                f"(S/.{UMBRAL_DIFERENCIA_SIN_OBSERVACION}). Debes indicar una observacion."
+            )
+
         caja.cerrar(monto_final=monto_final, observaciones=observaciones)
         return caja
 
@@ -42,13 +72,14 @@ class PagoService:
         numero_operacion: str = "",
     ) -> Pago:
 
+        orden = Orden.objects.select_for_update().get(pk=orden.pk)
+
         if orden.estado != Orden.Estado.ABIERTA:
-            raise ValueError("Solo se pueden cobrar órdenes abiertas.")
+            raise ValueError("Solo se pueden cobrar ordenes abiertas.")
 
         if monto <= 0:
             raise ValueError("El monto del pago debe ser mayor a 0.")
 
-        # Suma de pagos completados ya registrados para esta orden
         pagado_previo = (
             Pago.objects
             .filter(orden=orden, estado=Pago.Estado.COMPLETADO)
@@ -57,14 +88,13 @@ class PagoService:
         pendiente = orden.total - pagado_previo
 
         if pendiente <= 0:
-            raise ValueError("Esta orden ya está completamente pagada.")
+            raise ValueError("Esta orden ya esta completamente pagada.")
 
         if monto > pendiente:
             raise ValueError(
                 f"El monto ingresado (S/.{monto}) supera el pendiente (S/.{pendiente:.2f})."
             )
 
-        # Vuelto solo aplica para efectivo y solo en el último pago
         vuelto = Decimal("0")
         es_ultimo_pago = monto == pendiente
 
@@ -93,7 +123,6 @@ class PagoService:
             numero_operacion=numero_operacion if metodo_pago == Pago.MetodoPago.TARJETA else "",
         )
 
-        # Cerrar orden solo cuando la suma total de pagos cubre el total
         total_pagado = pagado_previo + monto
         if total_pagado >= orden.total:
             orden.cerrar()
@@ -102,21 +131,34 @@ class PagoService:
 
     @staticmethod
     @transaction.atomic
-    def anular_pago(pago: Pago) -> Pago:
+    def anular_pago(pago: Pago, motivo: str, usuario, detalle: str = "") -> Pago:
+        """Anula un pago y genera una nota de credito interna con el motivo.
+        La orden asociada NUNCA se reabre automaticamente: si el cliente
+        necesita pagar de nuevo, se crea una orden nueva. Esto evita que
+        ordenes ya cerradas reaparezcan mezcladas en 'por cobrar' sin que
+        nadie lo decida explicitamente."""
         if pago.estado == Pago.Estado.ANULADO:
-            raise ValueError("Este pago ya está anulado.")
+            raise ValueError("Este pago ya esta anulado.")
 
-        orden = pago.orden
+        orden = Orden.objects.select_for_update().get(pk=pago.orden_id)
         if orden.estado == Orden.Estado.ANULADA:
-            raise ValueError("La orden asociada a este pago ya está anulada.")
+            raise ValueError("La orden asociada a este pago ya esta anulada.")
 
         pago.anular()
+
+        NotaCredito.objects.create(
+            pago=pago,
+            motivo=motivo,
+            detalle=detalle,
+            monto=pago.monto,
+            usuario=usuario,
+        )
 
         MovimientoCaja.objects.create(
             caja=pago.caja,
             tipo=MovimientoCaja.Tipo.SALIDA,
             monto=pago.monto,
-            motivo=f"Devolución por anulación de pago #{pago.id} — Orden #{orden.id}",
+            motivo=f"Nota de credito - Pago #{pago.id} - Orden #{orden.id} - {motivo}",
         )
 
         return pago
@@ -141,6 +183,11 @@ class ComprobanteService:
         if tipo == Comprobante.TipoComprobante.FACTURA:
             if not cliente_nombre or not cliente_ruc_dni:
                 raise ValueError("Para emitir una factura se requiere nombre y RUC del cliente.")
+            if not es_ruc_valido(cliente_ruc_dni):
+                raise ValueError("El RUC debe tener exactamente 11 dígitos numéricos.")
+        elif tipo == Comprobante.TipoComprobante.BOLETA:
+            if cliente_ruc_dni and not es_dni_valido(cliente_ruc_dni):
+                raise ValueError("El DNI debe tener exactamente 8 dígitos numéricos.")
 
         return Comprobante.objects.create(
             pago=pago,

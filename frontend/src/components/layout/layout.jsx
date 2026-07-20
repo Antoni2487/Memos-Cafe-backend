@@ -1,16 +1,28 @@
+﻿import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import Sidebar from "./Sidebar";
-import Navbar from "./Navbar";
+import Sidebar from "./sidebar";
+import Navbar from "./navbar";
 import useApiErrors from "../../hooks/useApiErrors";
 
 export default function Layout() {
   const { error, clearError } = useApiErrors();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#F8F4EE" }}>
-      <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Navbar />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Overlay móvil — clic afuera cierra el drawer */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-40 md:hidden"
+          style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
+        />
+      )}
+
+      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+        <Navbar onMenuClick={() => setSidebarOpen(true)} />
         {/* Banner global de errores API */}
         {error && (
           <div
@@ -31,7 +43,7 @@ export default function Layout() {
         )}
         <main className="flex-1 overflow-y-auto relative" style={{ backgroundColor: "#F8F4EE" }}>
           <BotanicalWatermark />
-          <div className="relative z-10 p-6">
+          <div className="relative z-10 p-3 sm:p-4 md:p-6">
             <Outlet />
           </div>
         </main>
@@ -45,6 +57,7 @@ function BotanicalWatermark() {
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 600 600"
+      className="hidden md:block"
       style={{
         position: "fixed",
         bottom: 0,

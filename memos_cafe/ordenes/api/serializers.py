@@ -50,7 +50,11 @@ class DetalleOrdenWriteSerializer(serializers.Serializer):
 
 class OrdenReadSerializer(serializers.ModelSerializer):
     detalles = DetalleOrdenReadSerializer(many=True, read_only=True)
-    usuario_nombre = serializers.CharField(source="usuario.get_full_name", read_only=True)
+    usuario_nombre = serializers.SerializerMethodField()
+
+    def get_usuario_nombre(self, obj):
+        return obj.usuario.name or obj.usuario.email
+
     mesa_numero = serializers.IntegerField(source="mesa.numero", read_only=True, default=None)
     estado_display = serializers.CharField(source="get_estado_display", read_only=True)
     tipo_orden_display = serializers.CharField(source="get_tipo_orden_display", read_only=True)

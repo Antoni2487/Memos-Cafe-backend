@@ -6,6 +6,7 @@ import {
   StatCard, SearchBar, ConfirmDialog, FormModal, InputField,
 } from "../../components/common";
 import { CategoryModal } from "../../components/categorias/Categoriamodal";
+import { esSoloAlfanumerico, LIMITES, MENSAJES } from "../../utils/validators";
 
 export default function CategoriasPage() {
   const {
@@ -28,8 +29,21 @@ export default function CategoriasPage() {
     pedirEdicion(cat);
   };
 
+  const validarEditNombre = (valor) => {
+    const trimmed = valor.trim();
+    if (!trimmed) return "El nombre es obligatorio.";
+    if (trimmed.length < 2) return "Mínimo 2 caracteres.";
+    if (!esSoloAlfanumerico(trimmed)) return MENSAJES.SOLO_ALFANUMERICO;
+    return null;
+  };
+
+  const handleBlurEditNombre = (valor) => {
+    setEditError(validarEditNombre(valor) || "");
+  };
+
   const handleGuardarEdicion = async () => {
-    if (!editNombre.trim()) { setEditError("El nombre es obligatorio."); return; }
+    const msg = validarEditNombre(editNombre);
+    if (msg) { setEditError(msg); return; }
     setEditLoading(true);
     setEditError("");
     try {
@@ -203,6 +217,8 @@ export default function CategoriasPage() {
           label="Nombre"
           value={editNombre}
           onChange={setEditNombre}
+          onBlur={handleBlurEditNombre}
+          maxLength={LIMITES.NOMBRE_CATEGORIA}
           placeholder="Nombre de la categoria"
           required
           error={editError}

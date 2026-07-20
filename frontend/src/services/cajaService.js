@@ -1,7 +1,7 @@
-import api from "./api";
+﻿import api from "./api";
 
 const cajaService = {
-    // Sesión
+    // SesiÃ³n
     obtenerEstado: () => api.get("/caja/sesiones/estado/"),
     abrirSesion: (datos) => api.post("/caja/sesiones/abrir/", datos),
     cerrarSesion: (datos) => api.post("/caja/sesiones/cerrar/", datos),
@@ -13,7 +13,7 @@ const cajaService = {
     // Pagos
     listarPagos: () => api.get("/caja/pagos/"),
     procesarPago: (datos) => api.post("/caja/pagos/procesar/", datos),
-    anularPago: (id) => api.post(`/caja/pagos/${id}/anular/`),
+    anularPago: (id, payload) => api.post(`/caja/pagos/${id}/anular/`, payload),
 
     // Comprobantes
     emitirComprobante: (datos) => api.post("/caja/comprobantes/emitir/", datos),

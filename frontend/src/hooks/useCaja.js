@@ -44,7 +44,22 @@ export default function useCaja() {
         }
     }, []);
 
-    useEffect(() => { cargarEstado(); }, [cargarEstado]);
+    // Polling liviano: solo recarga órdenes abiertas cada 5 segundos.
+    // Mantiene la lista del cajero actualizada sin recargar pagos/movimientos.
+    // Patrón idéntico al setInterval de OrdenesPage.jsx.
+    const actualizarOrdenesAbiertas = useCallback(async () => {
+        try {
+            const ordenesRes = await ordenesService.listar();
+            const todas = ordenesRes.data.results ?? ordenesRes.data;
+            setOrdenesAbiertas(todas.filter((o) => o.estado === "abierta"));
+        } catch { /* silencioso — no interrumpe el estado actual */ }
+    }, []);
+
+    useEffect(() => {
+        cargarEstado();
+        const iv = setInterval(actualizarOrdenesAbiertas, 5000);
+        return () => clearInterval(iv);
+    }, [cargarEstado, actualizarOrdenesAbiertas]);
 
     return {
         caja, movimientos, pagos, ordenesAbiertas,

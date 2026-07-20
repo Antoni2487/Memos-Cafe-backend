@@ -1,4 +1,4 @@
-from rest_framework import mixins, status
+﻿from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
@@ -13,10 +13,11 @@ from memos_cafe.caja.api.serializers import (
     ComprobanteWriteSerializer,
     MovimientoCajaReadSerializer,
     MovimientoCajaSerializer,
+    NotaCreditoWriteSerializer,
     PagoReadSerializer,
     PagoWriteSerializer,
 )
-from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero
+from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero, modulo_requerido
 
 
 class CajaViewSet(GenericViewSet):
@@ -24,7 +25,7 @@ class CajaViewSet(GenericViewSet):
     Gestión de sesiones de caja.
     El ViewSet solo maneja HTTP — delega toda la lógica a CajaService.
     """
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("caja")]
     queryset = Caja.objects.all()
 
     @action(detail=False, methods=["get"], url_path="estado")
@@ -73,7 +74,7 @@ class MovimientoCajaViewSet(
     GenericViewSet,
 ):
     """Movimientos de efectivo dentro de una sesión de caja."""
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("caja")]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -112,7 +113,7 @@ class PagoViewSet(
     Gestión de pagos.
     El create va en un action separado para mayor control.
     """
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("caja")]
 
     def get_queryset(self):
         return (
@@ -134,7 +135,7 @@ class PagoViewSet(
                 orden=serializer.validated_data["orden"],
                 metodo_pago=serializer.validated_data["metodo_pago"],
                 monto=serializer.validated_data["monto"],
-                monto_recibido=serializer.validated_data["monto_recibido"],
+                monto_recibido=serializer.validated_data.get("monto_recibido"),
                 numero_operacion=serializer.validated_data.get("numero_operacion", ""),
             )
         except ValueError as e:
@@ -143,10 +144,18 @@ class PagoViewSet(
 
     @action(detail=True, methods=["post"], url_path="anular", permission_classes=[EsAdmin])
     def anular(self, request, pk=None):
-        """POST /api/pagos/{id}/anular/ — solo admin."""
+        """POST /api/pagos/{id}/anular/ — solo admin. Requiere motivo
+        (genera nota de credito interna; la orden NO se reabre)."""
         pago = self.get_object()
+        serializer = NotaCreditoWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         try:
-            PagoService.anular_pago(pago)
+            PagoService.anular_pago(
+                pago,
+                motivo=serializer.validated_data["motivo"],
+                detalle=serializer.validated_data.get("detalle", ""),
+                usuario=request.user,
+            )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(PagoReadSerializer(pago).data)
@@ -158,7 +167,7 @@ class ComprobanteViewSet(
     GenericViewSet,
 ):
     """Emisión y consulta de comprobantes."""
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("caja")]
     queryset = Comprobante.objects.select_related("pago").all()
 
     def get_serializer_class(self):

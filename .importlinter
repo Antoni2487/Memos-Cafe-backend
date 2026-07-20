@@ -1,0 +1,103 @@
+[importlinter]
+root_package = memos_cafe
+
+# Apps de negocio con capa de servicios (fat services, thin views): caja,
+# insumos, mesas, ordenes, productos. roles y users no tienen services.py
+# (son CRUD simples sobre un solo modelo) por eso no aparecen como source
+# en el contrato 1. reportes queda deliberadamente afuera de los 3
+# contratos: es una capa de reportes/agregacion que por diseno lee
+# modelos de varias apps directamente (no tiene modelo ni service propio),
+# no una app de negocio mas.
+
+[importlinter:contract:modelos-no-dependen-de-servicios]
+name = Los modelos no dependen de la capa de servicios
+type = forbidden
+source_modules =
+    memos_cafe.caja.models
+    memos_cafe.insumos.models
+    memos_cafe.mesas.models
+    memos_cafe.ordenes.models
+    memos_cafe.productos.models
+    memos_cafe.roles.models
+    memos_cafe.users.models
+forbidden_modules =
+    memos_cafe.caja.services
+    memos_cafe.insumos.services
+    memos_cafe.mesas.services
+    memos_cafe.ordenes.services
+    memos_cafe.productos.services
+
+[importlinter:contract:serializers-no-importan-de-views]
+name = Los serializers no importan directamente de views
+type = forbidden
+source_modules =
+    memos_cafe.caja.api.serializers
+    memos_cafe.insumos.api.serializers
+    memos_cafe.mesas.api.serializers
+    memos_cafe.ordenes.api.serializers
+    memos_cafe.productos.api.serializers
+    memos_cafe.roles.api.serializers
+    memos_cafe.users.api.serializers
+forbidden_modules =
+    memos_cafe.caja.api.views
+    memos_cafe.insumos.api.views
+    memos_cafe.mesas.api.views
+    memos_cafe.ordenes.api.views
+    memos_cafe.productos.api.views
+    memos_cafe.roles.api.views
+    memos_cafe.users.api.views
+
+# Adaptacion de "una app de negocio no debe importar de otra sin pasar
+# por una interfaz clara" a la estructura real: el proyecto no tiene una
+# capa de interfaces/puertos explicita, pero SI tiene un limite real y ya
+# respetado hoy: las vistas (views.py) de cada app solo importan de su
+# propia app (modelos, service, serializers) y nunca alcanzan otra app
+# de negocio directamente -- si necesitan datos de otro dominio, deberian
+# pasar por el service layer de su propia app. Modelos y serializers SI
+# se importan entre apps hoy (FKs y serializers anidados, ej. Orden
+# referencia Mesa/Producto) y eso no se restringe: es composicion de
+# datos normal en Django/DRF, no una violacion de capas.
+[importlinter:contract:vistas-no-cruzan-apps-de-negocio]
+name = Las vistas de cada app de negocio no importan directamente de otra app de negocio
+type = forbidden
+# allow_indirect_imports=True: solo interesa el acoplamiento DIRECTO de la
+# vista. Sin esto, cualquier vista queda "rota" por el simple hecho de que
+# su propio service (capa ya aceptada) cruza modelos de otra app -- eso no
+# es un bypass del service layer, es control de acceso via el service.
+allow_indirect_imports = True
+source_modules =
+    memos_cafe.caja.api.views
+    memos_cafe.insumos.api.views
+    memos_cafe.mesas.api.views
+    memos_cafe.ordenes.api.views
+    memos_cafe.productos.api.views
+    memos_cafe.roles.api.views
+    memos_cafe.users.api.views
+forbidden_modules =
+    memos_cafe.caja
+    memos_cafe.insumos
+    memos_cafe.mesas
+    memos_cafe.ordenes
+    memos_cafe.productos
+    memos_cafe.roles
+    memos_cafe.users
+
+# Hallazgo real que la version "indirecta" del contrato anterior tapaba:
+# utils/ deberia ser una hoja (todas las apps dependen de ella, nunca al
+# reves) pero utils/permissions.py importa memos_cafe.roles.models para el
+# permiso dinamico ModuloHabilitado. Como TODAS las vistas importan
+# utils.permissions, eso vuelve a colar a roles como dependencia
+# transitiva de cada app -- exactamente lo que este contrato aisla.
+[importlinter:contract:utils-no-depende-de-apps-de-negocio]
+name = Los modulos compartidos de utils no dependen de una app de negocio especifica
+type = forbidden
+source_modules =
+    memos_cafe.utils
+forbidden_modules =
+    memos_cafe.caja
+    memos_cafe.insumos
+    memos_cafe.mesas
+    memos_cafe.ordenes
+    memos_cafe.productos
+    memos_cafe.roles
+    memos_cafe.users

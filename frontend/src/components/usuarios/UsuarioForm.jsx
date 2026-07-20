@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { FormModal, InputField } from "../common";
 import { ROLES } from "../../utils/constants";
+import { esSoloAlfabetico, esEmailValido, LIMITES, MENSAJES } from "../../utils/validators";
 
 const ROLES_OPTIONS = [
   { value: ROLES.ADMIN,   label: "Admin" },
@@ -28,11 +29,34 @@ export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, car
 
   const set = (campo) => (val) => setForm((f) => ({ ...f, [campo]: val }));
 
+  const validarCampo = (campo, valor) => {
+    switch (campo) {
+      case "name":
+        if (valor && !esSoloAlfabetico(valor)) return MENSAJES.SOLO_ALFABETICO;
+        return null;
+      case "email":
+        if (!valor) return "El email es obligatorio";
+        if (!esEmailValido(valor)) return MENSAJES.EMAIL_INVALIDO;
+        return null;
+      case "password":
+        if (!usuario && !valor) return "La contraseña es obligatoria";
+        if (valor && valor.length < 8) return "Mínimo 8 caracteres";
+        return null;
+      default:
+        return null;
+    }
+  };
+
+  const handleBlur = (campo) => (valor) => {
+    setErrores((prev) => ({ ...prev, [campo]: validarCampo(campo, valor) || undefined }));
+  };
+
   const validar = () => {
     const e = {};
-    if (!form.email) e.email = "El email es obligatorio";
-    if (!usuario && !form.password) e.password = "La contraseña es obligatoria";
-    if (form.password && form.password.length < 8) e.password = "Mínimo 8 caracteres";
+    ["name", "email", "password"].forEach((campo) => {
+      const msg = validarCampo(campo, form[campo]);
+      if (msg) e[campo] = msg;
+    });
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -57,7 +81,9 @@ export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, car
         label="Nombre"
         value={form.name}
         onChange={set("name")}
+        onBlur={handleBlur("name")}
         placeholder="Nombre completo"
+        maxLength={LIMITES.NOMBRE_USUARIO}
         error={errores.name}
       />
       <InputField
@@ -65,8 +91,10 @@ export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, car
         type="email"
         value={form.email}
         onChange={set("email")}
+        onBlur={handleBlur("email")}
         placeholder="correo@ejemplo.com"
         required
+        maxLength={LIMITES.EMAIL}
         error={errores.email}
       />
       <InputField
@@ -74,8 +102,10 @@ export default function UsuarioForm({ abierto, usuario, onGuardar, onCerrar, car
         type="password"
         value={form.password}
         onChange={set("password")}
+        onBlur={handleBlur("password")}
         placeholder="***********"
         required={!usuario}
+        maxLength={LIMITES.PASSWORD}
         error={errores.password}
       />
       <InputField

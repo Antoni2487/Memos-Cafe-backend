@@ -1,17 +1,27 @@
-import logging
+﻿import logging
 from decimal import Decimal
 
 logger = logging.getLogger("memos_cafe.ordenes")
 
 from django.db import transaction
 
+from memos_cafe.caja.models import Caja
 from memos_cafe.mesas.models import Mesa
 from memos_cafe.ordenes.models import DetalleOrden, Orden
 from memos_cafe.productos.models import Producto, Promocion
 
 
 class OrdenService:
-    """Orquesta la creación y gestión de órdenes."""
+    """Orquesta la creacion y gestion de ordenes."""
+
+    @staticmethod
+    def fecha_apertura_caja_actual():
+        """Fecha de apertura de la sesion de caja actualmente abierta, o
+        None si no hay ninguna. Encapsula el cruce hacia el dominio de
+        Caja para que OrdenViewSet no importe memos_cafe.caja.models
+        directamente (ver .importlinter)."""
+        caja = Caja.objects.get_sesion_abierta()
+        return caja.fecha_apertura if caja else None
 
     @staticmethod
     @transaction.atomic
@@ -26,19 +36,22 @@ class OrdenService:
         plataforma_delivery: str = "",
         plataforma_otra: str = "",
     ) -> Orden:
+        if not Caja.objects.get_sesion_abierta():
+            raise ValueError("No hay una sesion de caja abierta. Un cajero debe abrir turno antes de crear ordenes.")
+
         if tipo_orden == Orden.TipoOrden.MESA and not mesa:
-            raise ValueError("Debe asignar una mesa para órdenes de tipo 'mesa'.")
+            raise ValueError("Debe asignar una mesa para ordenes de tipo 'mesa'.")
 
         if tipo_orden == Orden.TipoOrden.DELIVERY and not plataforma_delivery:
-            raise ValueError("Debe especificar la plataforma para órdenes delivery.")
+            raise ValueError("Debe especificar la plataforma para ordenes delivery.")
 
         if mesa:
             mesa = Mesa.objects.select_for_update().get(pk=mesa.pk)
             if mesa.estado != Mesa.Estado.LIBRE:
-                raise ValueError(f"La mesa {mesa.numero} no está libre.")
+                raise ValueError(f"La mesa {mesa.numero} no esta libre.")
 
         if not detalles:
-            raise ValueError("La orden debe tener al menos un ítem.")
+            raise ValueError("La orden debe tener al menos un item.")
 
         orden = Orden.objects.create(
             usuario=usuario,
@@ -77,7 +90,7 @@ class OrdenService:
 
 
 class DetalleOrdenService:
-    """Gestiona los ítems individuales dentro de una orden."""
+    """Gestiona los items individuales dentro de una orden."""
 
     @staticmethod
     def _crear_detalle(
@@ -87,12 +100,8 @@ class DetalleOrdenService:
         producto: Producto | None = None,
         promocion: Promocion | None = None,
     ) -> DetalleOrden:
-        """
-        Uso interno — crear_orden() lo llama dentro del loop.
-        No llama recalcular_total(); el caller lo hace una sola vez al final.
-        """
         if not producto and not promocion:
-            raise ValueError("Debe especificar al menos un producto o una promoción.")
+            raise ValueError("Debe especificar al menos un producto o una promocion.")
         if cantidad <= 0:
             raise ValueError("La cantidad debe ser mayor a 0.")
 
@@ -120,12 +129,8 @@ class DetalleOrdenService:
         producto: Producto | None = None,
         promocion: Promocion | None = None,
     ) -> DetalleOrden:
-        """
-        API pública — agrega un ítem a una orden ya existente.
-        Recalcula el total de la orden al finalizar.
-        """
         if not orden.esta_abierta:
-            raise ValueError("No se pueden agregar ítems a una orden cerrada o anulada.")
+            raise ValueError("No se pueden agregar items a una orden cerrada o anulada.")
 
         detalle = DetalleOrdenService._crear_detalle(
             orden=orden,
@@ -140,18 +145,13 @@ class DetalleOrdenService:
     @staticmethod
     @transaction.atomic
     def eliminar_detalle(orden: Orden, detalle_id: int) -> bool:
-        """
-        Elimina un ítem de una orden abierta y recalcula el total.
-        Retorna True si el ítem ya había sido enviado a cocina/barra (impreso),
-        para que el caller pueda ofrecer imprimir un ticket de anulación.
-        """
         if not orden.esta_abierta:
-            raise ValueError("No se pueden eliminar ítems de una orden cerrada o anulada.")
+            raise ValueError("No se pueden eliminar items de una orden cerrada o anulada.")
 
         try:
             detalle = orden.detalles.get(id=detalle_id)
         except DetalleOrden.DoesNotExist:
-            raise ValueError(f"El ítem #{detalle_id} no existe en esta orden.")
+            raise ValueError(f"El item #{detalle_id} no existe en esta orden.")
 
         estaba_impreso = detalle.impreso
         if estaba_impreso:
@@ -165,10 +165,6 @@ class DetalleOrdenService:
 
     @staticmethod
     def marcar_impreso(orden: Orden, detalle_ids: list[int]) -> None:
-        """
-        Marca los ítems indicados como impresos (ya enviados a cocina/barra).
-        Se llama después de imprimir la comanda exitosamente.
-        """
         if not detalle_ids:
             return
         orden.detalles.filter(id__in=detalle_ids).update(impreso=True)

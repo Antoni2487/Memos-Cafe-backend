@@ -105,7 +105,6 @@ export default function MesasPage() {
             }}
           >
             <option value="libre">Libre</option>
-            <option value="ocupada">Ocupada</option>
             <option value="reservada">Reservada</option>
           </select>
         );

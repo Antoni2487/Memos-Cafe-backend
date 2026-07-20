@@ -290,16 +290,16 @@ wheels = [
 
 [[package]]
 name = "django"
-version = "6.0.4"
+version = "6.0.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
     { name = "sqlparse" },
     { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/60/b9/4155091ad1788b38563bd77a7258c0834e8c12a7f56f6975deaf54f8b61d/django-6.0.4.tar.gz", hash = "sha256:8cfa2572b3f2768b2e84983cf3c4811877a01edb64e817986ec5d60751c113ac", size = 10907407, upload-time = "2026-04-07T13:55:44.961Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/29/ac41e16097af67066d97a7d5775c5d8e7efc5d0284f6b0a159e07b9adb92/django-6.0.6.tar.gz", hash = "sha256:ad03916ba59523d781ae5c3f631960c23d69a9d9c43cecda52fc23b47e953713", size = 10905525, upload-time = "2026-06-03T13:02:46.503Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e9/47/3d61d611609764aa71a37f7037b870e7bfb22937366974c4fd46cada7bab/django-6.0.4-py3-none-any.whl", hash = "sha256:14359c809fc16e8f81fd2b59d7d348e4d2d799da6840b10522b6edf7b8afc1da", size = 8368342, upload-time = "2026-04-07T13:55:37.999Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/50/23f9dc45483419a3cc2085b498b25adfbf10642b2941c73e6d2dfaffc9ab/django-6.0.6-py3-none-any.whl", hash = "sha256:25148b1194c47c2e685e5f5e9c5d59c78b075dfd282cb9618861ba6c1708f4d2", size = 8373354, upload-time = "2026-06-03T13:02:41.72Z" },
 ]
 
 [[package]]
@@ -492,16 +492,16 @@ wheels = [
 
 [[package]]
 name = "djangorestframework-simplejwt"
-version = "5.5.0"
+version = "5.5.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
     { name = "djangorestframework" },
     { name = "pyjwt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/db/1e/0d4439d0fa1d93599fbcfc56efdc02cbf012e3a4b4ef90c835e0a51017d4/djangorestframework_simplejwt-5.5.0.tar.gz", hash = "sha256:474a1b737067e6462b3609627a392d13a4da8a08b1f0574104ac6d7b1406f90e", size = 97946, upload-time = "2025-02-26T19:36:01.717Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/27/2874a325c11112066139769f7794afae238a07ce6adf96259f08fd37a9d7/djangorestframework_simplejwt-5.5.1.tar.gz", hash = "sha256:e72c5572f51d7803021288e2057afcbd03f17fe11d484096f40a460abc76e87f", size = 101265, upload-time = "2025-07-21T16:52:25.026Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/b4/d1c1750aa7c8cc07e4974275f96b9b9b3a38e95ff734e14b4e97790c8974/djangorestframework_simplejwt-5.5.0-py3-none-any.whl", hash = "sha256:4ef6b38af20cdde4a4a51d1fd8e063cbbabb7b45f149cc885d38d905c5a62edb", size = 103480, upload-time = "2025-02-26T19:36:29.04Z" },
+    { url = "https://files.pythonhosted.org/packages/60/94/fdfb7b2f0b16cd3ed4d4171c55c1c07a2d1e3b106c5978c8ad0c15b4a48b/djangorestframework_simplejwt-5.5.1-py3-none-any.whl", hash = "sha256:2c30f3707053d384e9f315d11c2daccfcb548d4faa453111ca19a542b732e469", size = 107674, upload-time = "2025-07-21T16:52:07.493Z" },
 ]
 
 [[package]]
@@ -641,6 +641,28 @@ wheels = [
 ]
 
 [[package]]
+name = "grimp"
+version = "3.15"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/73/ce58881177b003def779c87b5e10f396deef068933c97d6d206bd46d4cb7/grimp-3.15.tar.gz", hash = "sha256:91b57d4d801dc107ebfb5a7040d4777a152c579b5dc202426e1185e50931fe1e", size = 831734, upload-time = "2026-07-03T12:09:36.244Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/66/621abde26d8ece0d34ba611ca94bc62bf8c9c4389760d8909b0d96964878/grimp-3.15-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:915ea140cf55107fd6825c3e9eae2c4fda18aa19b87e8eee05d510b4d44ab928", size = 2143914, upload-time = "2026-07-03T12:08:50.423Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/76/a27fff8de84dbf46db9d6da937fe772f04a0e21e057a4863fd30e6fcaa55/grimp-3.15-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:0ae2d4d958d871792a9686ad51845e9e1e0886e9db13ecc47a9475899f4b27db", size = 2089296, upload-time = "2026-07-03T12:08:42.802Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/3d/fe38a0881ce7e00ef8590745853bccff5d337a943dc0d1d0735b0eb605f9/grimp-3.15-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:19a1039d50ed6a9b221f44b32c7b07cb43dda70971e892fe8149995c0e9c1840", size = 2254829, upload-time = "2026-07-03T12:07:34.365Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/a2/ef18989048e8f0c92171eabb15dffe9cd72de6404b86e3a37553f7d16dd6/grimp-3.15-cp312-cp312-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:5b7b649f2a34278897237670b6650073c9ab0fc1abf56821301bda28cb5c4256", size = 2193553, upload-time = "2026-07-03T12:07:45.06Z" },
+    { url = "https://files.pythonhosted.org/packages/85/22/82303539d21068021cc28c526be5e1b1cc0b7a61704c1663909497dd9b8a/grimp-3.15-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:020a8875c0cb67f407eb019b7be65b574d49071653f155c243f801aa87a1fd4d", size = 2345941, upload-time = "2026-07-03T12:08:18.082Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/20/3c66e7c814ba2b6b0cd230ca2445825c605f28242f4f3a658e5bb9adda73/grimp-3.15-cp312-cp312-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:1f0a0705cf9a10648c4aea71edde8fe3dfbf1cf05bd434ef38c813ad7c544886", size = 2604369, upload-time = "2026-07-03T12:07:55.926Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/7d/2f642969950e096a67a43909ba66f33cb4750974e30c2c771e293aeb787c/grimp-3.15-cp312-cp312-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:c36373cd0a2d4c9b53fabefbaa9edcc4c511ad2d335fb1296484f6ca550e4f82", size = 2326619, upload-time = "2026-07-03T12:08:05.931Z" },
+    { url = "https://files.pythonhosted.org/packages/a1/99/98d39545e54e239a52a54d8e96752780778b11b5ebc78096dfa090f9d2ac/grimp-3.15-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:477ac0abcd12c697a0bd01b40875605f7f0db97332df6148e4d4057ee3ad199d", size = 2272955, upload-time = "2026-07-03T12:08:30.488Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/02/fabd5ae2b12276530f4bae038ffcf3a556ac2c9b9fa271f83fbeb4036a08/grimp-3.15-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:017e493fee9962d50db6f7a8b5d49ad2ae508484a06078d700adbef30f1ff1f0", size = 2431271, upload-time = "2026-07-03T12:08:57.606Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/c8/fa3ec84df9c3ccc2b08177be41a48b76178e9e5773f4471f1caff4fc5c46/grimp-3.15-cp312-cp312-musllinux_1_2_armv7l.whl", hash = "sha256:e77982dd5b0977945034fa328f65cfb62ff589cb0da97a0f6042de78525c5c73", size = 2466937, upload-time = "2026-07-03T12:09:07.857Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/7e/52d3acd2bbd6cebdf2ee6546c334f50f6358c25ae58624ae63d2ec3ad30b/grimp-3.15-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:d129a8c57b7a19a44e8da94caf38a02753f1c9953aaba8c1a4633747f097164f", size = 2504734, upload-time = "2026-07-03T12:09:17.998Z" },
+    { url = "https://files.pythonhosted.org/packages/33/53/ad27750eb8b4a0c3ecb5ca7d78c7230f0f5e814515ed6f8986be527117ff/grimp-3.15-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:ba25002e92b1792f13391295a1f805d2e09781b846d92ec1a791ff9ed89298b6", size = 2514448, upload-time = "2026-07-03T12:09:28.401Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/c0/8cc474a24198c1c2936269c5854be92af41787bd76d3190af584a9cebca7/grimp-3.15-cp312-cp312-win32.whl", hash = "sha256:232bf7a4c7536f62a99478eeb01de63c455261add35ee00c6ec9f04f280f853e", size = 1855806, upload-time = "2026-07-03T12:09:48.396Z" },
+    { url = "https://files.pythonhosted.org/packages/91/11/e46139fd43dd5714fae93f09f1c858fb2dc83a575d5f8cb1daf8a15a261b/grimp-3.15-cp312-cp312-win_amd64.whl", hash = "sha256:13be2285e358a7687c0f3b798ac9d4819f275976ad8d651297966e5a75bfafb9", size = 1985556, upload-time = "2026-07-03T12:09:40.786Z" },
+]
+
+[[package]]
 name = "gunicorn"
 version = "25.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -707,6 +729,21 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6c/e6/7bf14eeb8f8b7251141944835abd42eb20a658d89084b7e1f3e5fe394090/imagesize-2.0.0.tar.gz", hash = "sha256:8e8358c4a05c304f1fccf7ff96f036e7243a189e9e42e90851993c558cfe9ee3", size = 1773045, upload-time = "2026-03-03T14:18:29.941Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5f/53/fb7122b71361a0d121b669dcf3d31244ef75badbbb724af388948de543e2/imagesize-2.0.0-py2.py3-none-any.whl", hash = "sha256:5667c5bbb57ab3f1fa4bc366f4fbc971db3d5ed011fd2715fd8001f782718d96", size = 9441, upload-time = "2026-03-03T14:18:27.892Z" },
+]
+
+[[package]]
+name = "import-linter"
+version = "2.13"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "grimp" },
+    { name = "rich" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/97/c6/42962eb043df4d6984c1540220735b20442572fe37dab5e65ac807c939b9/import_linter-2.13.tar.gz", hash = "sha256:13af4a1d6b06044c58ea784e8732fd7fe48eec821a75feb4d6a1a2de36dd5c27", size = 1279761, upload-time = "2026-07-03T14:00:31.285Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/13/e7725e6eb32607fd4af51ccf3edfe835826e5cdf783b4d7fdc8f459196ae/import_linter-2.13-py3-none-any.whl", hash = "sha256:c0372e7ee5e15657bc06a8e841445e13237afd738a672d26863dc927af9f0bf5", size = 638185, upload-time = "2026-07-03T14:00:29.676Z" },
 ]
 
 [[package]]
@@ -869,6 +906,18 @@ wheels = [
 ]
 
 [[package]]
+name = "markdown-it-py"
+version = "4.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mdurl" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/06/ff/7841249c247aa650a76b9ee4bbaeae59370dc8bfd2f6c01f3630c35eb134/markdown_it_py-4.2.0.tar.gz", hash = "sha256:04a21681d6fbb623de53f6f364d352309d4094dd4194040a10fd51833e418d49", size = 82454, upload-time = "2026-05-07T12:08:28.36Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl", hash = "sha256:9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a", size = 91687, upload-time = "2026-05-07T12:08:27.182Z" },
+]
+
+[[package]]
 name = "markupsafe"
 version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -900,6 +949,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mdurl"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
 name = "memos-cafe"
 version = "0.1.0"
 source = { virtual = "." }
@@ -923,6 +981,7 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pillow" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pyjwt" },
     { name = "python-slugify" },
     { name = "redis" },
     { name = "whitenoise" },
@@ -938,6 +997,7 @@ dev = [
     { name = "djangorestframework-stubs" },
     { name = "djlint" },
     { name = "factory-boy" },
+    { name = "import-linter" },
     { name = "ipdb" },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -954,7 +1014,7 @@ dev = [
 requires-dist = [
     { name = "argon2-cffi", specifier = "==25.1.0" },
     { name = "crispy-bootstrap5", specifier = "==2026.3" },
-    { name = "django", specifier = "==6.0.4" },
+    { name = "django", specifier = "==6.0.6" },
     { name = "django-allauth", extras = ["mfa"], specifier = "==65.16.1" },
     { name = "django-anymail", specifier = "==15.0" },
     { name = "django-cors-headers", specifier = "==4.9.0" },
@@ -964,13 +1024,14 @@ requires-dist = [
     { name = "django-model-utils", specifier = "==5.0.0" },
     { name = "django-redis", specifier = "==6.0.0" },
     { name = "djangorestframework", specifier = "==3.17.1" },
-    { name = "djangorestframework-simplejwt", specifier = "==5.5.0" },
+    { name = "djangorestframework-simplejwt", specifier = "==5.5.1" },
     { name = "drf-spectacular", specifier = "==0.29.0" },
     { name = "gunicorn", specifier = "==25.3.0" },
     { name = "hiredis", specifier = "==3.3.1" },
     { name = "openpyxl", specifier = "==3.1.5" },
     { name = "pillow", specifier = "==12.2.0" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.4" },
+    { name = "pyjwt", specifier = "==2.13.0" },
     { name = "python-slugify", specifier = "==8.0.4" },
     { name = "redis", specifier = "==7.4.0" },
     { name = "whitenoise", specifier = "==6.12.0" },
@@ -986,6 +1047,7 @@ dev = [
     { name = "djangorestframework-stubs", specifier = "==3.16.9" },
     { name = "djlint", specifier = "==1.36.4" },
     { name = "factory-boy", specifier = "==3.3.3" },
+    { name = "import-linter", specifier = "==2.13" },
     { name = "ipdb", specifier = "==0.13.13" },
     { name = "mypy", specifier = "==1.20.2" },
     { name = "pre-commit", specifier = "==4.6.0" },
@@ -1244,11 +1306,11 @@ wheels = [
 
 [[package]]
 name = "pyjwt"
-version = "2.9.0"
+version = "2.13.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fb/68/ce067f09fca4abeca8771fe667d89cc347d1e99da3e093112ac329c6020e/pyjwt-2.9.0.tar.gz", hash = "sha256:7e1e5b56cc735432a7369cbfa0efe50fa113ebecdc04ae6922deba8b84582d0c", size = 78825, upload-time = "2024-08-01T15:01:08.445Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/81/58d0ac84e1ef3a3843791d6954d94c0b33d526c75eeb1efbce9d0a4c4077/pyjwt-2.13.0.tar.gz", hash = "sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423", size = 107515, upload-time = "2026-05-21T19:54:36.618Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/84/0fdf9b18ba31d69877bd39c9cd6052b47f3761e9910c15de788e519f079f/PyJWT-2.9.0-py3-none-any.whl", hash = "sha256:3b02fb0f44517787776cf48f2ae25d8e14f300e6d7545a4315cee571a415e850", size = 22344, upload-time = "2024-08-01T15:01:06.481Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/5e/ecf12fdb62546d64385c158514e9b2b671f7832108ef2ecd2020ce0af2d1/pyjwt-2.13.0-py3-none-any.whl", hash = "sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728", size = 31274, upload-time = "2026-05-21T19:54:35.362Z" },
 ]
 
 [[package]]
@@ -1407,6 +1469,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0", size = 73075, upload-time = "2026-05-14T19:25:26.443Z" },
+]
+
+[[package]]
+name = "rich"
+version = "15.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markdown-it-py" },
+    { name = "pygments" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36", size = 230680, upload-time = "2026-04-12T08:24:00.75Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/82/3b/64d4899d73f91ba49a8c18a8ff3f0ea8f1c1d75481760df8c68ef5235bf5/rich-15.0.0-py3-none-any.whl", hash = "sha256:33bd4ef74232fb73fe9279a257718407f169c09b78a87ad3d296f548e27de0bb", size = 310654, upload-time = "2026-04-12T08:24:02.83Z" },
 ]
 
 [[package]]

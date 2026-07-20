@@ -11,6 +11,7 @@ from memos_cafe.mesas.api.serializers import MesaSerializer
 from memos_cafe.utils.permissions import EsAdmin
 from memos_cafe.utils.permissions import EsAdminOMesero
 from memos_cafe.utils.permissions import TodosAutenticados
+from memos_cafe.utils.permissions import modulo_requerido
 
 
 class MesaViewSet(ModelViewSet):
@@ -25,11 +26,14 @@ class MesaViewSet(ModelViewSet):
     serializer_class = MesaSerializer
 
     def get_permissions(self):
+        # list/retrieve quedan sin el gate de PermisoRol a proposito: Ordenes
+        # necesita leer mesas para el selector de mesa aunque el modulo
+        # "Mesas" (gestion/CRUD) este deshabilitado para el rol.
         if self.action in ["list", "retrieve"]:
             return [TodosAutenticados()]
         if self.action == "estado":
-            return [EsAdminOMesero()]
-        return [EsAdmin()]
+            return [EsAdminOMesero(), modulo_requerido("mesas")()]
+        return [EsAdmin(), modulo_requerido("mesas")()]
 
     def get_serializer_class(self):
         if self.action == "estado":

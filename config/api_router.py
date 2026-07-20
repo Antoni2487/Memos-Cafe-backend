@@ -1,8 +1,9 @@
 ﻿from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenBlacklistView, TokenRefreshView
 
 from memos_cafe.reportes.views import (
+    AlertasView,
     DashboardView,
     ReporteCajaView,
     ReporteOrdenesExportView,
@@ -22,8 +23,10 @@ urlpatterns = [
     # Auth JWT
     path("auth/login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("auth/logout/", TokenBlacklistView.as_view(), name="token_blacklist"),
 
     # Users
+    path("alertas/", AlertasView.as_view(), name="alertas"),
     path("", include(router.urls)),
     path("roles/", include("memos_cafe.roles.urls")),
 

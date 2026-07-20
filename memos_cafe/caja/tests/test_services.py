@@ -2,6 +2,7 @@ import pytest
 from decimal import Decimal
 from memos_cafe.caja.services import CajaService, PagoService, ComprobanteService
 from memos_cafe.caja.models import Caja, MovimientoCaja, Pago, Comprobante
+from memos_cafe.caja.api.serializers import CajaReadSerializer
 from memos_cafe.caja.tests.factories import CajaFactory, OrdenFactory
 from memos_cafe.users.tests.factories import UserFactory
 
@@ -78,6 +79,109 @@ class TestCajaService:
                 monto=Decimal("50.00"),
                 motivo="test",
             )
+
+
+class TestCerrarSesionConDiscrepancia:
+    """CajaService.cerrar_sesion exige observaciones cuando el faltante/
+    sobrante supera UMBRAL_DIFERENCIA_SIN_OBSERVACION (S/5.00)."""
+
+    @pytest.fixture
+    def caja_sin_ventas(self):
+        return CajaFactory(monto_inicial=Decimal("100.00"))
+
+    def test_discrepancia_grande_sin_observaciones_lanza_error(self, caja_sin_ventas):
+        # esperado = 100 (inicial) + 0 (ventas) + 0 (movimientos) = 100
+        # contado = 200 -> diferencia = 100, supera el umbral de 5
+        with pytest.raises(ValueError, match="supera el margen permitido"):
+            CajaService.cerrar_sesion(Decimal("200.00"))
+        caja_sin_ventas.refresh_from_db()
+        assert caja_sin_ventas.estado == Caja.Estado.ABIERTA  # no se cerro
+
+    def test_discrepancia_grande_con_observaciones_permite_cierre(self, caja_sin_ventas):
+        caja = CajaService.cerrar_sesion(
+            Decimal("200.00"), "Faltante grande, revisar con el turno siguiente"
+        )
+        assert caja.estado == Caja.Estado.CERRADA
+        assert caja.monto_final == Decimal("200.00")
+
+    @pytest.mark.parametrize("monto_final", [Decimal("100.00"), Decimal("104.99"), Decimal("95.01")])
+    def test_discrepancia_dentro_del_margen_no_exige_observaciones(self, caja_sin_ventas, monto_final):
+        # dentro de +-5.00 del esperado (100): no debe exigir observaciones
+        caja = CajaService.cerrar_sesion(monto_final)
+        assert caja.estado == Caja.Estado.CERRADA
+        assert caja.observaciones == ""
+
+
+class TestMovimientoCajaNeto:
+    """El badge/lista de movimientos y el cuadre de caja dependen de que
+    neto_por_caja sume entradas y reste salidas, no solo salidas."""
+
+    def test_neto_por_caja_solo_entradas(self):
+        caja = CajaFactory()
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("30.00"), motivo="Fondo"
+        )
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("20.00"), motivo="Fondo 2"
+        )
+        assert MovimientoCaja.objects.neto_por_caja(caja) == Decimal("50.00")
+
+    def test_neto_por_caja_solo_salidas(self):
+        caja = CajaFactory()
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.SALIDA, monto=Decimal("15.00"), motivo="Compra"
+        )
+        assert MovimientoCaja.objects.neto_por_caja(caja) == Decimal("-15.00")
+
+    def test_neto_por_caja_entradas_y_salidas_mixtas(self):
+        """Caso critico: una entrada y una salida en la misma caja deben
+        netearse, no ignorarse una de las dos."""
+        caja = CajaFactory()
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("100.00"), motivo="Fondo adicional"
+        )
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.SALIDA, monto=Decimal("30.00"), motivo="Compra de insumos"
+        )
+        assert MovimientoCaja.objects.neto_por_caja(caja) == Decimal("70.00")
+        assert caja.movimientos.count() == 2
+
+    def test_neto_por_caja_sin_movimientos_es_cero(self):
+        caja = CajaFactory()
+        assert MovimientoCaja.objects.neto_por_caja(caja) == Decimal("0")
+
+    def test_esperado_en_caja_incluye_entrada_y_salida(self):
+        """CajaReadSerializer.esperado_en_caja debe sumar el fondo inicial,
+        las ventas y el neto de movimientos (no solo las salidas)."""
+        caja = CajaFactory(monto_inicial=Decimal("100.00"))
+        orden = OrdenFactory(estado="abierta", total=Decimal("50.00"))
+        PagoService.procesar_pago(orden=orden, metodo_pago="efectivo", monto=Decimal("50.00"))
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("40.00"), motivo="Fondo adicional"
+        )
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.SALIDA, monto=Decimal("25.00"), motivo="Compra de insumos"
+        )
+
+        data = CajaReadSerializer(caja).data
+        # 100 (inicial) + 50 (ventas) + 40 (entrada) - 25 (salida) = 165
+        assert data["movimientos_neto"] == Decimal("15.00")
+        assert data["esperado_en_caja"] == Decimal("165.00")
+
+    def test_cerrar_sesion_diferencia_cero_con_movimientos_mixtos_cuadrados(self):
+        """El cierre no debe exigir observaciones si la caja cuadra
+        exactamente, incluyendo entradas y salidas manuales."""
+        caja = CajaFactory(monto_inicial=Decimal("100.00"))
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("40.00"), motivo="Fondo adicional"
+        )
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.SALIDA, monto=Decimal("25.00"), motivo="Compra de insumos"
+        )
+        # esperado = 100 + 0 (sin ventas) + 40 - 25 = 115
+        caja_cerrada = CajaService.cerrar_sesion(Decimal("115.00"))
+        assert caja_cerrada.estado == Caja.Estado.CERRADA
+        assert CajaReadSerializer(caja_cerrada).data["diferencia"] == Decimal("0.00")
 
 
 class TestCajaModel:

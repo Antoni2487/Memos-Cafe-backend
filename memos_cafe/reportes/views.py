@@ -1,5 +1,6 @@
 ﻿import logging
 import io
+from datetime import timedelta
 from django.http import HttpResponse
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -17,17 +18,17 @@ from rest_framework.views import APIView
 from memos_cafe.caja.models import Caja
 
 logger = logging.getLogger("memos_cafe.reportes")
-from memos_cafe.caja.models import Pago
+from memos_cafe.caja.models import MovimientoCaja, Pago
 from memos_cafe.mesas.models import Mesa
 from memos_cafe.ordenes.models import DetalleOrden
 from memos_cafe.ordenes.models import Orden
-from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero
+from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero, modulo_requerido
 
 
 class DashboardView(APIView):
     """
     GET /api/dashboard/
-    KPIs del dÃ­a actual para el admin.
+    KPIs del dia actual para el admin.
     Solo admin.
     """
     permission_classes = [EsAdmin]
@@ -35,13 +36,13 @@ class DashboardView(APIView):
     def get(self, request):
         hoy = timezone.localdate()
 
-        # â”€â”€ Ã“rdenes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Ordenes --------------------------------------------------------
         ordenes_hoy = Orden.objects.filter(fecha_creacion__date=hoy)
         ordenes_abiertas = Orden.objects.filter(estado="abierta").count()
         ordenes_cerradas_hoy = ordenes_hoy.filter(estado="cerrada").count()
         ordenes_anuladas_hoy = ordenes_hoy.filter(estado="anulada").count()
 
-        # â”€â”€ Ventas del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Ventas del dia ---------------------------------------------------
         pagos_hoy = Pago.objects.filter(
             estado="completado",
             fecha__date=hoy,
@@ -56,7 +57,8 @@ class DashboardView(APIView):
             round(total_ventas / total_pagos, 2) if total_pagos > 0 else 0
         )
 
-        # Desglose por mÃ©todo de pago
+        # Desglose por metodo de pago (nombre de campo alineado con el
+        # frontend: ventas_por_metodo, top-level en la respuesta)
         ventas_por_metodo = list(
             pagos_hoy.values("metodo_pago")
             .annotate(
@@ -66,7 +68,42 @@ class DashboardView(APIView):
             .order_by("-total")
         )
 
-        # â”€â”€ Mesas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Ventas de los ultimos 7 dias (para el grafico de area) ----------
+        desde = hoy - timedelta(days=6)
+        ventas_por_dia_qs = (
+            Pago.objects.filter(estado="completado", fecha__date__gte=desde, fecha__date__lte=hoy)
+            .annotate(dia=TruncDate("fecha"))
+            .values("dia")
+            .annotate(
+                total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
+                ordenes=Count("orden", distinct=True),
+            )
+            .order_by("dia")
+        )
+        por_dia_map = {v["dia"]: v for v in ventas_por_dia_qs}
+        ventas_por_dia = []
+        for i in range(7):
+            dia = desde + timedelta(days=i)
+            registro = por_dia_map.get(dia)
+            ventas_por_dia.append({
+                "fecha": dia.isoformat(),
+                "total": registro["total"] if registro else 0,
+                "ordenes": registro["ordenes"] if registro else 0,
+            })
+
+        # -- Ganancias del mes y del ano --------------------------------------
+        inicio_mes = hoy.replace(day=1)
+        inicio_anio = hoy.replace(month=1, day=1)
+
+        ventas_mes = Pago.objects.filter(
+            estado="completado", fecha__date__gte=inicio_mes, fecha__date__lte=hoy
+        ).aggregate(total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()))["total"]
+
+        ventas_anio = Pago.objects.filter(
+            estado="completado", fecha__date__gte=inicio_anio, fecha__date__lte=hoy
+        ).aggregate(total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()))["total"]
+
+        # -- Mesas -------------------------------------------------------------
         mesas = Mesa.objects.filter(activo=True)
         resumen_mesas = {
             "total": mesas.count(),
@@ -75,23 +112,28 @@ class DashboardView(APIView):
             "reservadas": mesas.filter(estado="reservada").count(),
         }
 
-        # â”€â”€ Caja activa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Caja activa ---------------------------------------------------------
         caja_activa = Caja.objects.get_sesion_abierta()
         caja_info = None
         if caja_activa:
             pagos_caja = caja_activa.pagos.filter(estado="completado")
-            ventas_turno = pagos_caja.aggregate(
+            ventas_pagos = pagos_caja.aggregate(
                 total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField())
             )["total"]
+            # Los movimientos manuales (entrada/salida) tambien afectan
+            # cuanto hay realmente en caja durante el turno; sin esto
+            # 'ventas_turno' no reflejaba salidas como compra de insumos.
+            movimientos_neto = MovimientoCaja.objects.neto_por_caja(caja_activa)
+            ventas_turno = ventas_pagos + movimientos_neto
             caja_info = {
                 "id": caja_activa.id,
-                "cajero": caja_activa.usuario.get_full_name() or caja_activa.usuario.email,
+                "cajero": caja_activa.usuario.name or caja_activa.usuario.email,
                 "fecha_apertura": caja_activa.fecha_apertura,
                 "monto_inicial": caja_activa.monto_inicial,
                 "ventas_turno": ventas_turno,
             }
 
-        # â”€â”€ Top 5 productos del dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # -- Top 5 productos del dia --------------------------------------------
         top_productos = list(
             DetalleOrden.objects.filter(
                 orden__estado="cerrada",
@@ -114,7 +156,11 @@ class DashboardView(APIView):
                 "total": total_ventas,
                 "ticket_promedio": ticket_promedio,
                 "por_metodo": ventas_por_metodo,
+                "mes": ventas_mes,
+                "anio": ventas_anio,
             },
+            "ventas_por_dia": ventas_por_dia,
+            "ventas_por_metodo": ventas_por_metodo,
             "mesas": resumen_mesas,
             "caja_activa": caja_info,
             "top_productos": top_productos,
@@ -141,7 +187,7 @@ class ReporteVentasView(APIView):
                 status=400,
             )
 
-        # Base queryset â€” solo pagos completados
+        # Base queryset de solo pagos completados
         pagos = Pago.objects.filter(
             estado="completado",
             fecha__date__gte=fecha_inicio,
@@ -175,7 +221,7 @@ class ReporteVentasView(APIView):
             .order_by("fecha_dia")
         )
 
-        # Ventas por mÃ©todo de pago
+        # Ventas por metodo de pago
         ventas_por_metodo = list(
             pagos.values("metodo_pago")
             .annotate(
@@ -247,7 +293,7 @@ class ReporteVentasView(APIView):
             ws1.append(["Ticket promedio", float(ticket)])
             ws1.append([])
 
-            # â”€â”€ Hoja 2: Ventas por dÃ­a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            # â”€â”€ Hoja 2: Ventas por dia â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ws2 = wb.create_sheet("Ventas por dÃ­a")
             headers2 = ["Fecha", "Total (S/)", "Ã“rdenes"]
             ws2.append(headers2)
@@ -270,7 +316,7 @@ class ReporteVentasView(APIView):
             ws2.column_dimensions["B"].width = 14
             ws2.column_dimensions["C"].width = 10
 
-            # â”€â”€ Hoja 3: Por mÃ©todo de pago â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            # â”€â”€ Hoja 3: Por metodo de pago â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ws3 = wb.create_sheet("Por mÃ©todo de pago")
             headers3 = ["MÃ©todo", "Total (S/)", "Cantidad"]
             ws3.append(headers3)
@@ -288,7 +334,7 @@ class ReporteVentasView(APIView):
                 )
             )
             for row in ventas_por_metodo:
-                ws3.append([row["metodo_pago"], float(row["total"]), row["cantidad"]])
+                ws3.append([row["metodo_pago"], float(row["total"]), row["ordenes"]])
 
             ws3.column_dimensions["A"].width = 16
             ws3.column_dimensions["B"].width = 14
@@ -378,7 +424,7 @@ class ReporteCajaExportView(APIView):
                 )
                 ws.append([
                     caja.id,
-                    caja.usuario.get_full_name() or caja.usuario.email,
+                    caja.usuario.name or caja.usuario.email,
                     caja.estado,
                     str(caja.fecha_apertura) if caja.fecha_apertura else "",
                     str(caja.fecha_cierre)   if caja.fecha_cierre   else "",
@@ -480,7 +526,7 @@ class ReporteProductosView(APIView):
 
 class ReporteCajaView(APIView):
     """GET /api/reportes/caja/"""
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("reportes")]
 
     def get(self, request):
         fecha_inicio = request.query_params.get("fecha_inicio")
@@ -544,7 +590,7 @@ class ReporteCajaView(APIView):
 
         return {
             "caja_id":              caja.id,
-            "cajero":               caja.usuario.get_full_name() or caja.usuario.email,
+            "cajero":               caja.usuario.name or caja.usuario.email,
             "estado":               caja.estado,
             "fecha_apertura":       caja.fecha_apertura,
             "fecha_cierre":         caja.fecha_cierre,
@@ -559,50 +605,95 @@ class ReporteCajaView(APIView):
         }
     
 class ReporteProductosExportView(APIView):
+    """GET /api/reportes/productos/export/ — descarga Excel de productos y promociones."""
+    permission_classes = [EsAdmin]
 
-    def _cuadre_caja(self, caja, metodo_pago=None):
-        """Arma el resumen completo de un turno de caja."""
-        pagos = caja.pagos.filter(estado="completado")
-        if metodo_pago:
-            pagos = pagos.filter(metodo_pago=metodo_pago)
+    def get(self, request):
+        fecha_inicio = request.query_params.get("fecha_inicio")
+        fecha_fin    = request.query_params.get("fecha_fin")
+        if not fecha_inicio or not fecha_fin:
+            return Response({"detail": "fecha_inicio y fecha_fin son requeridos."}, status=400)
 
-        totales = pagos.aggregate(
-            total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
-            cantidad_pagos=Count("id"),
+        productos = list(
+            DetalleOrden.objects.filter(
+                orden__estado="cerrada",
+                orden__fecha_cierre__date__gte=fecha_inicio,
+                orden__fecha_cierre__date__lte=fecha_fin,
+                producto__isnull=False,
+            )
+            .values(nombre=F("producto__nombre"), categoria=F("producto__categoria__nombre"))
+            .annotate(
+                cantidad=Sum("cantidad"),
+                total=Coalesce(Sum("subtotal"), Value(0), output_field=DecimalField()),
+            )
+            .order_by("-cantidad")
         )
 
-        # Desglose por mÃ©todo de pago
-        por_metodo = pagos.values("metodo_pago").annotate(
-            total=Coalesce(Sum("monto"), Value(0), output_field=DecimalField()),
-            cantidad=Count("id"),
-        )
-        metodos = {item["metodo_pago"]: item["total"] for item in por_metodo}
-
-        total_ventas          = totales["total"]
-        monto_inicial         = caja.monto_inicial or 0
-        monto_final_esperado  = monto_inicial + total_ventas
-        monto_final_contado   = caja.monto_final or 0
-        diferencia            = (
-            monto_final_contado - monto_final_esperado
-            if caja.monto_final is not None
-            else None
+        promociones = list(
+            DetalleOrden.objects.filter(
+                orden__estado="cerrada",
+                orden__fecha_cierre__date__gte=fecha_inicio,
+                orden__fecha_cierre__date__lte=fecha_fin,
+                promocion__isnull=False,
+            )
+            .values(nombre=F("promocion__nombre"))
+            .annotate(
+                cantidad=Sum("cantidad"),
+                total=Coalesce(Sum("subtotal"), Value(0), output_field=DecimalField()),
+            )
+            .order_by("-cantidad")
         )
 
-        return {
-            "caja_id":              caja.id,
-            "cajero":               caja.usuario.get_full_name() or caja.usuario.email,
-            "estado":               caja.estado,
-            "fecha_apertura":       caja.fecha_apertura,
-            "fecha_cierre":         caja.fecha_cierre,
-            "monto_inicial":        monto_inicial,
-            "total_ventas":         total_ventas,
-            "cantidad_pagos":       totales["cantidad_pagos"],
-            "desglose_metodos":     metodos,
-            "monto_final_esperado": monto_final_esperado,
-            "monto_final_contado":  monto_final_contado,
-            "diferencia":           diferencia,
-            "observaciones":        caja.observaciones,
-        }
+        try:
+            wb = openpyxl.Workbook()
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill("solid", fgColor="2C5545")
+            center      = Alignment(horizontal="center")
+
+            ws1 = wb.active
+            ws1.title = "Productos"
+            headers1 = ["Producto", "Categoría", "Cantidad vendida", "Total (S/)"]
+            ws1.append(headers1)
+            for col, _ in enumerate(headers1, 1):
+                cell = ws1.cell(row=1, column=col)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center
+            for p in productos:
+                ws1.append([p["nombre"], p["categoria"] or "-", p["cantidad"], float(p["total"])])
+            for col in ["A", "B", "C", "D"]:
+                ws1.column_dimensions[col].width = 22
+
+            ws2 = wb.create_sheet("Promociones")
+            headers2 = ["Promoción", "Cantidad vendida", "Total (S/)"]
+            ws2.append(headers2)
+            for col, _ in enumerate(headers2, 1):
+                cell = ws2.cell(row=1, column=col)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center
+            for p in promociones:
+                ws2.append([p["nombre"], p["cantidad"], float(p["total"])])
+            for col in ["A", "B", "C"]:
+                ws2.column_dimensions[col].width = 22
+
+            buffer = io.BytesIO()
+            wb.save(buffer)
+            buffer.seek(0)
+            filename = f"reporte_productos_{fecha_inicio}_{fecha_fin}.xlsx"
+            response = HttpResponse(
+                buffer.getvalue(),
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+        except Exception as exc:
+            logger.error(
+                "Error Excel productos | usuario=%s | error=%s",
+                request.user.email, str(exc), exc_info=True,
+            )
+            return Response({"detail": "Error al generar el reporte."}, status=500)
+
 
 class ReporteVentasExportView(APIView):
     """GET /api/reportes/ventas/export/ â€” descarga Excel de ventas."""
@@ -669,7 +760,7 @@ class ReporteOrdenesView(APIView):
                 "tipo_orden":   o.tipo_orden,
                 "estado":       o.estado,
                 "mesa":         o.mesa.numero if o.mesa else None,
-                "usuario":      o.usuario.get_full_name() or o.usuario.email,
+                "usuario":      o.usuario.name or o.usuario.email,
                 "items":        o.detalles.count(),
                 "total":        o.total,
                 "cliente":      o.cliente_nombre or None,
@@ -768,7 +859,7 @@ class ReporteOrdenesView(APIView):
                     o.tipo_orden,
                     o.estado,
                     o.mesa.numero if o.mesa else "",
-                    o.usuario.get_full_name() or o.usuario.email,
+                    o.usuario.name or o.usuario.email,
                     o.cliente_nombre or "",
                     o.plataforma_delivery or "",
                     o.detalles.count(),
@@ -830,3 +921,75 @@ class ReporteOrdenesExportView(APIView):
 
     def get(self, request):
         return ReporteOrdenesView().export_excel(request)
+
+
+class AlertasView(APIView):
+    """GET /api/alertas/ — eventos del turno actual (últimas 8 horas)."""
+    permission_classes = [EsAdmin]
+
+    def get(self, request):
+        desde = timezone.now() - timedelta(hours=8)
+
+        alertas = []
+
+        # ── Aperturas de caja ─────────────────────────────────────────────
+        cajas = Caja.objects.filter(
+            fecha_apertura__gte=desde
+        ).select_related("usuario")
+
+        for caja in cajas:
+            alertas.append({
+                "tipo": "caja_apertura",
+                "mensaje": f"Caja abierta por el usuario {caja.usuario.name or caja.usuario.email}",
+                "fecha": caja.fecha_apertura,
+                "icono": "caja",
+            })
+            if caja.fecha_cierre:
+                alertas.append({
+                    "tipo": "caja_cierre",
+                    "mensaje": f"Caja cerrada por el usuario {caja.usuario.name or caja.usuario.email}",
+                    "fecha": caja.fecha_cierre,
+                    "icono": "caja",
+                })
+
+        # ── Órdenes creadas ───────────────────────────────────────────────
+        ordenes = Orden.objects.filter(
+            fecha_creacion__gte=desde
+        ).select_related("usuario", "mesa")
+
+        for orden in ordenes:
+            tipo_display = {
+                "mesa":     f"Mesa {orden.mesa.numero}" if orden.mesa else "Mesa",
+                "llevar":   "Para llevar",
+                "delivery": "Delivery",
+            }.get(orden.tipo_orden, orden.tipo_orden)
+
+            alertas.append({
+                "tipo": "orden_creada",
+                "mensaje": f"Nueva orden #{orden.id} — {tipo_display}",
+                "fecha": orden.fecha_creacion,
+                "icono": "orden",
+            })
+
+        # ── Ventas cobradas ───────────────────────────────────────────────
+        pagos = Pago.objects.filter(
+            fecha__gte=desde,
+            estado="completado",
+        ).select_related("orden")
+
+        for pago in pagos:
+            alertas.append({
+                "tipo": "venta_cobrada",
+                "mensaje": f"Venta cobrada — Orden #{pago.orden_id} · S/ {pago.monto}",
+                "fecha": pago.fecha,
+                "icono": "venta",
+            })
+
+        # ── Ordenar por fecha descendente ─────────────────────────────────
+        alertas.sort(key=lambda x: x["fecha"], reverse=True)
+
+        # Serializar fechas
+        for a in alertas:
+            a["fecha"] = a["fecha"].isoformat()
+
+        return Response(alertas)

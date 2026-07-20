@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { FormModal, InputField, ImageUpload } from "../common";
+import { esSoloAlfanumerico, LIMITES, MENSAJES } from "../../utils/validators";
 
 export default function PromocionForm({ abierto, promocion, onGuardar, onCerrar, cargando }) {
   const hoy = new Date().toISOString().split("T")[0];
@@ -30,9 +31,20 @@ export default function PromocionForm({ abierto, promocion, onGuardar, onCerrar,
 
   const minFechaInicio = hoy;
 
+  const validarNombre = (valor) => {
+    if (!valor.trim()) return "El nombre es obligatorio";
+    if (!esSoloAlfanumerico(valor)) return MENSAJES.SOLO_ALFANUMERICO;
+    return null;
+  };
+
+  const handleBlurNombre = (valor) => {
+    setErrores((prev) => ({ ...prev, nombre: validarNombre(valor) || undefined }));
+  };
+
   const validar = () => {
     const e = {};
-    if (!form.nombre.trim())        e.nombre      = "El nombre es obligatorio";
+    const errNombre = validarNombre(form.nombre);
+    if (errNombre)                   e.nombre      = errNombre;
     if (!form.precio)               e.precio      = "El precio es obligatorio";
     if (Number(form.precio) <= 0)   e.precio      = "El precio debe ser mayor a 0";
 
@@ -70,8 +82,10 @@ export default function PromocionForm({ abierto, promocion, onGuardar, onCerrar,
       maxWidth="520px"
     >
       <InputField label="Nombre" value={form.nombre} onChange={set("nombre")}
+        onBlur={handleBlurNombre} maxLength={LIMITES.NOMBRE}
         placeholder="Ej: Combo del d\u00eda" required error={errores.nombre} />
       <InputField label="Descripci\u00f3n" value={form.descripcion} onChange={set("descripcion")}
+        maxLength={LIMITES.DESCRIPCION}
         placeholder="Descripci\u00f3n opcional" rows={3} />
       <InputField label="Precio (S/)" type="number" value={form.precio} onChange={set("precio")}
         placeholder="0.00" required error={errores.precio} />

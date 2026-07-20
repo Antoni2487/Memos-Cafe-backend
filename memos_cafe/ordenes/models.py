@@ -1,4 +1,4 @@
-from django.conf import settings
+﻿from django.conf import settings
 from django.db import models
 
 from memos_cafe.mesas.models import Mesa
@@ -89,6 +89,19 @@ class Orden(models.Model):
         self.save(update_fields=["estado", "fecha_cierre"])
         if self.mesa_id:
             self.mesa.liberar()
+
+    def reabrir(self):
+        """Reabre una orden cerrada (ej. cuando se anula el pago que la cerró).
+        Reocupa la mesa solo si sigue libre; si otra orden ya la tomó,
+        la orden vuelve a 'abierta' sin mesa asignada para que el
+        cajero/mesero la reasigne manualmente."""
+        if self.estado != self.Estado.CERRADA:
+            raise ValueError("Solo se pueden reabrir órdenes cerradas.")
+        self.estado      = self.Estado.ABIERTA
+        self.fecha_cierre = None
+        self.save(update_fields=["estado", "fecha_cierre"])
+        if self.mesa_id and self.mesa.estado == Mesa.Estado.LIBRE:
+            self.mesa.ocupar()
 
     def anular(self):
         from django.utils import timezone

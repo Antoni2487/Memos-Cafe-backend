@@ -40,13 +40,22 @@ export default function AppRouter() {
           </Route>
           <Route element={<PrivateRoute />}>
             <Route path="/home" element={<HomePage />} />
+          </Route>
+
+          {/* Mesas y Órdenes: acceso además condicionado por PermisoRol
+              (admin controla esto desde "Roles y Permisos"). list/retrieve
+              de mesas en el backend sigue abierto porque Órdenes depende
+              de leer mesas para el selector, aunque "mesas" esté deshabilitado. */}
+          <Route element={<PrivateRoute modulo="mesas" />}>
             <Route path="/mesas" element={<MesasPage />} />
+          </Route>
+          <Route element={<PrivateRoute modulo="ordenes" />}>
             <Route path="/ordenes" element={<OrdenesPage />} />
             <Route path="/comanda/:ordenId" element={<ComandaPage />} />
           </Route>
 
-          {/* Solo admin y cajero */}
-          <Route element={<PrivateRoute roles={[ROLES.ADMIN, ROLES.CAJERO]} />}>
+          {/* Solo admin y cajero, y solo si el módulo "caja" está habilitado */}
+          <Route element={<PrivateRoute roles={[ROLES.ADMIN, ROLES.CAJERO]} modulo="caja" />}>
             <Route path="/caja" element={<CajaPage />} />
           </Route>
 
@@ -57,7 +66,7 @@ export default function AppRouter() {
             <Route path="/insumos" element={<InsumosPage />} />
             <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/roles" element={<RolesPage />} />
-            <Route path="/categorias" element={<CategoriaPage />} /> 
+            <Route path="/categorias" element={<CategoriaPage />} />
           </Route>
 
         </Route> {/* ← cierra Layout */}

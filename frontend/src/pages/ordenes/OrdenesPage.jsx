@@ -7,6 +7,9 @@ import { TIPO_ORDEN, PLATAFORMA_DELIVERY } from "../../utils/constants";
 import { formatDateTime } from "../../utils/formatters";
 import StatusBadge from "../../components/common/StatusBadge";
 import { ConfirmDialog } from "../../components/common/Modals";
+import { SearchBar } from "../../components/common";
+import { useIsMobile } from "../../hooks/useMediaQuery";
+import { esSoloAlfabetico, esSoloAlfanumerico, esSoloNumerico, LIMITES, MENSAJES } from "../../utils/validators";
 
 const PLATAFORMA_OPCIONES = [
   { value: PLATAFORMA_DELIVERY.RAPPI,      label: "Rappi" },
@@ -85,9 +88,9 @@ function ProductoCard({ item, esPromo = false, onClick }) {
       onClick={() => onClick(item, esPromo)}
       style={{
         background: "white", border: `1.5px solid ${COLOR.borde}`,
-        borderRadius: 10, padding: "12px 10px", cursor: "pointer",
+        borderRadius: 10, padding: "10px 10px 12px", cursor: "pointer",
         display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4,
-        textAlign: "left", transition: "all 0.15s", width: "100%",
+        textAlign: "left", transition: "all 0.15s", width: "100%", overflow: "hidden",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = COLOR.verde;
@@ -98,6 +101,20 @@ function ProductoCard({ item, esPromo = false, onClick }) {
         e.currentTarget.style.boxShadow = "none";
       }}
     >
+      {item.imagen ? (
+        <img src={item.imagen} alt={item.nombre}
+          style={{ width: "100%", height: 72, objectFit: "cover", borderRadius: 8, marginBottom: 2 }} />
+      ) : (
+        <div style={{
+          width: "100%", height: 72, borderRadius: 8, marginBottom: 2,
+          background: esPromo ? "rgba(201,168,76,0.14)" : COLOR.verdePal,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: "'Playfair Display',Georgia,serif", fontSize: 22, fontWeight: 700,
+          color: esPromo ? COLOR.dorado : COLOR.verde,
+        }}>
+          {item.nombre.charAt(0).toUpperCase()}
+        </div>
+      )}
       {esPromo && (
         <span style={{ fontSize: 10, fontWeight: 700, color: COLOR.dorado,
           textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -116,8 +133,112 @@ function ProductoCard({ item, esPromo = false, onClick }) {
   );
 }
 
+// ─── Selector de catálogo: búsqueda + tabs productos/promociones ──────────────
+function CatalogoSelector({ productos, promociones, onAgregar, gridMinWidth = 150 }) {
+  const [busqueda, setBusqueda]       = useState("");
+  const [tab, setTab]                 = useState("productos");
+  const [categFiltro, setCategFiltro] = useState("todos");
+
+  const hayPromos = promociones.length > 0;
+  const tabActiva = hayPromos ? tab : "productos";
+
+  const categorias = [
+    "todos",
+    ...new Set(productos.map((p) => p.categoria_nombre).filter(Boolean)),
+  ];
+
+  const termino = busqueda.trim().toLowerCase();
+  const coincide = (nombre) => !termino || nombre.toLowerCase().includes(termino);
+
+  const productosFiltrados = productos.filter((p) =>
+    (categFiltro === "todos" || p.categoria_nombre === categFiltro) && coincide(p.nombre)
+  );
+  const promocionesFiltradas = promociones.filter((p) => coincide(p.nombre));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <SearchBar
+        placeholder="Buscar producto o promoción..."
+        onBuscar={setBusqueda}
+        className="w-full"
+      />
+
+      {hayPromos && (
+        <div style={{ display: "flex", gap: 8, background: COLOR.gris,
+          borderRadius: 10, padding: 4, width: "fit-content" }}>
+          {[
+            { value: "productos", label: "Productos" },
+            { value: "promociones", label: "Promociones" },
+          ].map(({ value, label }) => (
+            <button key={value} onClick={() => setTab(value)}
+              style={{
+                padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+                fontFamily: "'Lato',sans-serif", fontSize: 12.5, fontWeight: 600,
+                background: tabActiva === value ? COLOR.verde : "transparent",
+                color: tabActiva === value ? "white" : "rgba(44,85,69,0.6)",
+                transition: "all 0.15s",
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tabActiva === "productos" ? (
+        <>
+          {categorias.length > 1 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {categorias.map((cat) => (
+                <button key={cat} onClick={() => setCategFiltro(cat)}
+                  style={{
+                    padding: "5px 12px", borderRadius: 20, border: "none", cursor: "pointer",
+                    fontFamily: "'Lato',sans-serif", fontSize: 12, fontWeight: 600,
+                    background: categFiltro === cat ? COLOR.verde : COLOR.verdePal,
+                    color: categFiltro === cat ? "white" : COLOR.verde,
+                    transition: "all 0.15s",
+                    textTransform: cat === "todos" ? "none" : "capitalize",
+                  }}>
+                  {cat === "todos" ? "Todos" : cat}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {productosFiltrados.length === 0 ? (
+            <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 13, color: "#999" }}>
+              {termino ? "Sin productos que coincidan con la búsqueda" : "Sin productos cargados aún"}
+            </p>
+          ) : (
+            <div style={{ display: "grid",
+              gridTemplateColumns: `repeat(auto-fill, minmax(${gridMinWidth}px, 1fr))`, gap: 10 }}>
+              {productosFiltrados.map((p) => (
+                <ProductoCard key={`prod-${p.id}`} item={p} esPromo={false} onClick={onAgregar} />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        promocionesFiltradas.length === 0 ? (
+          <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 13, color: "#999" }}>
+            {termino ? "Sin promociones que coincidan con la búsqueda" : "Sin promociones disponibles"}
+          </p>
+        ) : (
+          <div style={{ display: "grid",
+            gridTemplateColumns: `repeat(auto-fill, minmax(${gridMinWidth}px, 1fr))`, gap: 10 }}>
+            {promocionesFiltradas.map((p) => (
+              <ProductoCard key={`promo-${p.id}`} item={p} esPromo={true} onClick={onAgregar} />
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function OrdenesPage() {
+  const isMobile = useIsMobile();
+
   // Datos
   const [ordenes, setOrdenes]         = useState([]);
   const [mesas, setMesas]             = useState([]);
@@ -138,9 +259,6 @@ export default function OrdenesPage() {
   const [errForm, setErrForm]         = useState({});
   const [creando, setCreando]         = useState(false);
   const [exitoMsg, setExitoMsg]       = useState("");
-
-  // Filtro catálogo
-  const [categFiltro, setCategFiltro] = useState("todos");
 
   // Anular
   const [anularTarget, setAnularTarget] = useState(null);
@@ -173,7 +291,11 @@ export default function OrdenesPage() {
         ]);
         setOrdenes(resO.data.results   ?? resO.data);
         setMesas(resM.data.results     ?? resM.data);
-        setProductos(resP.data.results ?? resP.data);
+        // /api/productos/ devuelve TODOS los productos para admin (incluidos los
+        // no disponibles, para que los pueda gestionar). El catálogo de la orden
+        // solo debe ofrecer los disponibles: el backend rechaza con 400 un
+        // producto no disponible al crear la orden.
+        setProductos((resP.data.results ?? resP.data).filter((p) => p.disponible));
         setPromociones(resPr.data.results ?? resPr.data);
       } catch (e) {
         setError("Error al cargar datos");
@@ -185,24 +307,6 @@ export default function OrdenesPage() {
     const iv = setInterval(cargarOrdenes, 5000);
     return () => clearInterval(iv);
   }, []);
-
-  // ── Catálogo ─────────────────────────────────────────────────────────────────
-  const CATEG_PROMOS = "__promociones__";
-  const categorias = [
-    "todos",
-    ...new Set(productos.map((p) => p.categoria_nombre).filter(Boolean)),
-    ...(promociones.length > 0 ? [CATEG_PROMOS] : []),
-  ];
-
-  const productosFiltrados = categFiltro === "todos"
-    ? productos
-    : categFiltro === CATEG_PROMOS
-      ? []
-      : productos.filter((p) => p.categoria_nombre === categFiltro);
-
-  const promocionesFiltradas = (categFiltro === "todos" || categFiltro === CATEG_PROMOS)
-    ? promociones
-    : [];
 
   // ── Manejo de items ───────────────────────────────────────────────────────────
   const agregarItem = (item, esPromo) => {
@@ -239,9 +343,16 @@ export default function OrdenesPage() {
   const handleCrear = async () => {
     const err = {};
     if (tipoOrden === TIPO_ORDEN.MESA && !mesaId) err.mesa = "Seleccioná una mesa";
-    if (tipoOrden === TIPO_ORDEN.DELIVERY && !plataforma) err.plataforma = "Seleccioná la plataforma";
-    if (tipoOrden === TIPO_ORDEN.DELIVERY && plataforma === PLATAFORMA_DELIVERY.OTRO && !plataformaOtra.trim())
-      err.plataformaOtra = "Escribí el nombre";
+    if (tipoOrden === TIPO_ORDEN.DELIVERY) {
+      if (!plataforma) err.plataforma = "Seleccioná la plataforma";
+      if (plataforma === PLATAFORMA_DELIVERY.OTRO) {
+        if (!plataformaOtra.trim()) err.plataformaOtra = "Escribí el nombre";
+        else if (!esSoloAlfanumerico(plataformaOtra)) err.plataformaOtra = MENSAJES.SOLO_ALFANUMERICO;
+      }
+      if (clienteNombre && !esSoloAlfabetico(clienteNombre)) err.clienteNombre = MENSAJES.SOLO_ALFABETICO;
+      if (clienteTelefono && !esSoloNumerico(clienteTelefono)) err.clienteTelefono = MENSAJES.SOLO_NUMERICO;
+      if (direccionEntrega && !esSoloAlfanumerico(direccionEntrega)) err.direccionEntrega = MENSAJES.SOLO_ALFANUMERICO;
+    }
     if (items.length === 0) err.items = "Agregá al menos un ítem";
     if (Object.keys(err).length) { setErrForm(err); return; }
 
@@ -266,6 +377,11 @@ export default function OrdenesPage() {
       }
       const { data } = await ordenesService.crear(payload);
       setOrdenes((prev) => [data, ...prev]);
+      // Actualización optimista: la mesa ya está ocupada en la BD,
+      // reflejarlo inmediatamente en el estado local sin esperar el polling.
+      if (tipoOrden === TIPO_ORDEN.MESA && mesaId) {
+        setMesas((prev) => prev.map((m) => m.id === mesaId ? { ...m, estado: "ocupada" } : m));
+      }
       resetForm();
       setExitoMsg(`Orden #${data.id} creada`);
       setTimeout(() => setExitoMsg(""), 3000);
@@ -326,6 +442,8 @@ export default function OrdenesPage() {
     );
   };
 
+  const quitarItemEditar = (key) => setItemsEditar((prev) => prev.filter((i) => i.key !== key));
+
   const handleEliminarDetalle = async (detalleId, impreso) => {
     if (!ordenEditar) return;
     if (impreso) {
@@ -376,12 +494,17 @@ export default function OrdenesPage() {
   );
 
   const mesaSeleccionada = mesas.find((m) => m.id === mesaId);
+  // Los descartables son productos "de sistema" (categoría dedicada): no se
+  // navegan en el catálogo, se ofrecen como checkbox directo en la orden.
+  const descartables = productos.filter((p) => p.categoria_nombre === "Descartables");
+  const productosCatalogo = productos.filter((p) => p.categoria_nombre !== "Descartables");
+  const drawerAncho = isMobile ? "100%" : 420;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
       {/* ── Encabezado ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between",
         borderBottom: `1px solid ${COLOR.borde}`, paddingBottom: 16 }}>
         <div>
           <h2 style={{ fontFamily: "'Playfair Display',Georgia,serif", fontSize: "1.5rem",
@@ -400,7 +523,11 @@ export default function OrdenesPage() {
       </div>
 
       {/* ── Panel principal: catálogo + orden ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 20, alignItems: "start" }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 380px",
+        gap: 20, alignItems: "start"
+      }}>
 
         {/* ── Panel izquierdo: catálogo ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -449,8 +576,8 @@ export default function OrdenesPage() {
           {tipoOrden === TIPO_ORDEN.DELIVERY && (
             <div style={estilos.seccion}>
               <p style={estilos.seccionLabel}>Datos del delivery</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div style={{ gridColumn: "1 / -1" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+                <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                   <label style={estilos.inputLabel}>Plataforma *</label>
                   <select value={plataforma} onChange={e => setPlataforma(e.target.value)} style={estilos.select}>
                     <option value="">— Seleccioná —</option>
@@ -459,23 +586,34 @@ export default function OrdenesPage() {
                   {errForm.plataforma && <p style={estilos.errorTxt}>{errForm.plataforma}</p>}
                 </div>
                 {plataforma === PLATAFORMA_DELIVERY.OTRO && (
-                  <div style={{ gridColumn: "1 / -1" }}>
+                  <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                     <label style={estilos.inputLabel}>Nombre de plataforma *</label>
-                    <input value={plataformaOtra} onChange={e => setPlataformaOtra(e.target.value)} style={estilos.input} />
+                    <input value={plataformaOtra} onChange={e => setPlataformaOtra(e.target.value)}
+                      onBlur={e => setErrForm(f => ({ ...f, plataformaOtra: (e.target.value.trim() && !esSoloAlfanumerico(e.target.value)) ? MENSAJES.SOLO_ALFANUMERICO : undefined }))}
+                      maxLength={LIMITES.PLATAFORMA_OTRA} style={estilos.input} />
                     {errForm.plataformaOtra && <p style={estilos.errorTxt}>{errForm.plataformaOtra}</p>}
                   </div>
                 )}
                 <div>
                   <label style={estilos.inputLabel}>Cliente</label>
-                  <input value={clienteNombre} onChange={e => setClienteNombre(e.target.value)} style={estilos.input} placeholder="Nombre" />
+                  <input value={clienteNombre} onChange={e => setClienteNombre(e.target.value)}
+                    onBlur={e => setErrForm(f => ({ ...f, clienteNombre: (e.target.value && !esSoloAlfabetico(e.target.value)) ? MENSAJES.SOLO_ALFABETICO : undefined }))}
+                    maxLength={LIMITES.NOMBRE_PERSONA} style={estilos.input} placeholder="Nombre" />
+                  {errForm.clienteNombre && <p style={estilos.errorTxt}>{errForm.clienteNombre}</p>}
                 </div>
                 <div>
                   <label style={estilos.inputLabel}>Teléfono</label>
-                  <input value={clienteTelefono} onChange={e => setClienteTelefono(e.target.value)} style={estilos.input} placeholder="999 999 999" />
+                  <input value={clienteTelefono} onChange={e => setClienteTelefono(e.target.value)}
+                    onBlur={e => setErrForm(f => ({ ...f, clienteTelefono: (e.target.value && !esSoloNumerico(e.target.value)) ? MENSAJES.SOLO_NUMERICO : undefined }))}
+                    maxLength={LIMITES.TELEFONO} style={estilos.input} placeholder="999 999 999" />
+                  {errForm.clienteTelefono && <p style={estilos.errorTxt}>{errForm.clienteTelefono}</p>}
                 </div>
-                <div style={{ gridColumn: "1 / -1" }}>
+                <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                   <label style={estilos.inputLabel}>Dirección de entrega</label>
-                  <input value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)} style={estilos.input} placeholder="Av. ..." />
+                  <input value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)}
+                    onBlur={e => setErrForm(f => ({ ...f, direccionEntrega: (e.target.value && !esSoloAlfanumerico(e.target.value)) ? MENSAJES.SOLO_ALFANUMERICO : undefined }))}
+                    maxLength={LIMITES.DIRECCION} style={estilos.input} placeholder="Av. ..." />
+                  {errForm.direccionEntrega && <p style={estilos.errorTxt}>{errForm.direccionEntrega}</p>}
                 </div>
               </div>
             </div>
@@ -484,48 +622,21 @@ export default function OrdenesPage() {
           {/* Catálogo productos */}
           <div style={estilos.seccion}>
             <p style={estilos.seccionLabel}>Catálogo</p>
-
-            {/* Filtro categorías */}
-            {categorias.length > 1 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-                {categorias.map((cat) => (
-                  <button key={cat} onClick={() => setCategFiltro(cat)}
-                    style={{
-                      padding: "5px 12px", borderRadius: 20, border: "none", cursor: "pointer",
-                      fontFamily: "'Lato',sans-serif", fontSize: 12, fontWeight: 600,
-                      background: categFiltro === cat ? COLOR.verde : COLOR.verdePal,
-                      color: categFiltro === cat ? "white" : COLOR.verde,
-                      transition: "all 0.15s",
-                      textTransform: cat === "todos" ? "none" : "capitalize",
-                    }}>
-                    {cat === "todos" ? "Todos" : cat === CATEG_PROMOS ? "Promociones" : cat}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Grid productos */}
-            {productosFiltrados.length === 0 && promociones.length === 0 ? (
-              <p style={{ fontFamily: "'Lato',sans-serif", fontSize: 13, color: "#999" }}>
-                Sin productos cargados aún
-              </p>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
-                {productosFiltrados.map((p) => (
-                  <ProductoCard key={`prod-${p.id}`} item={p} esPromo={false} onClick={agregarItem} />
-                ))}
-                {promocionesFiltradas.map((p) => (
-                  <ProductoCard key={`promo-${p.id}`} item={p} esPromo={true} onClick={agregarItem} />
-                ))}
-              </div>
-            )}
+            <CatalogoSelector
+              productos={productosCatalogo}
+              promociones={promociones}
+              onAgregar={agregarItem}
+            />
           </div>
         </div>
 
         {/* ── Panel derecho: orden ── */}
-        <div style={{ position: "sticky", top: 20, background: "white",
+        <div style={{
+          position: isMobile ? "static" : "sticky", top: isMobile ? undefined : 20,
+          background: "white",
           border: `1.5px solid ${COLOR.borde}`, borderRadius: 14,
-          boxShadow: "0 4px 20px rgba(44,85,69,0.08)", overflow: "hidden" }}>
+          boxShadow: "0 4px 20px rgba(44,85,69,0.08)", overflow: "hidden"
+        }}>
 
           {/* Header panel */}
           <div style={{ background: COLOR.verde, padding: "14px 18px",
@@ -541,8 +652,27 @@ export default function OrdenesPage() {
             </span>
           </div>
 
+          {/* Descartables — checkbox directo, no pasan por el catálogo */}
+          {descartables.length > 0 && (
+            <div style={{ padding: "10px 14px 0", display: "flex", gap: 16, flexWrap: "wrap" }}>
+              {descartables.map((d) => {
+                const key = `prod-${d.id}`;
+                const marcado = items.some((i) => i.key === key);
+                return (
+                  <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 6,
+                    fontFamily: "'Lato',sans-serif", fontSize: 12.5, fontWeight: 600,
+                    color: COLOR.verde, cursor: "pointer" }}>
+                    <input type="checkbox" checked={marcado}
+                      onChange={() => marcado ? quitarItem(key) : agregarItem(d, false)} />
+                    {d.nombre}
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
           {/* Items */}
-          <div style={{ padding: "12px 14px", minHeight: 200, maxHeight: 380, overflowY: "auto" }}>
+          <div style={{ padding: "12px 14px", minHeight: 200, maxHeight: isMobile ? "none" : 380, overflowY: isMobile ? "visible" : "auto" }}>
             {items.length === 0 ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
                 justifyContent: "center", height: 160, gap: 8, color: "rgba(44,85,69,0.35)" }}>
@@ -650,100 +780,111 @@ export default function OrdenesPage() {
             Sin órdenes registradas hoy
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "rgba(44,85,69,0.04)" }}>
-                {["#", "Tipo", "Mesa / Cliente", "Ítems", "Total", "Estado", "Hora", "Acciones"].map(h => (
-                  <th key={h} style={{ padding: "10px 14px", textAlign: "left",
-                    fontFamily: "'Lato',sans-serif", fontSize: 11, fontWeight: 700,
-                    color: "rgba(44,85,69,0.6)", textTransform: "uppercase",
-                    letterSpacing: "0.07em", borderBottom: `1px solid ${COLOR.borde}` }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ordenes.map((orden, idx) => (
-                <tr key={orden.id}
-                  style={{ background: idx % 2 === 0 ? "white" : "rgba(44,85,69,0.015)",
-                    borderBottom: `1px solid ${COLOR.borde}` }}>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
-                      fontWeight: 700, color: COLOR.verde }}>#{orden.id}</span>
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12,
-                      color: "#555" }}>{orden.tipo_orden_display || orden.tipo_orden}</span>
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#555" }}>
-                      {orden.mesa_numero ? `Mesa ${orden.mesa_numero}`
-                        : orden.cliente_nombre || orden.plataforma_delivery || "—"}
-                    </span>
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#555" }}>
-                      {orden.detalles?.length || 0}
-                    </span>
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
-                      fontWeight: 700, color: COLOR.verde }}>
-                      S/ {parseFloat(orden.total).toFixed(2)}
-                    </span>
-                  </td>
-                  <td style={estilos.td}>
-                    <StatusBadge estado={orden.estado} />
-                  </td>
-                  <td style={estilos.td}>
-                    <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 11, color: "#888" }}>
-                      {formatDateTime(orden.fecha_creacion)}
-                    </span>
-                  </td>
-                  <td style={estilos.td}>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button
-                        onClick={() => abrirVer(orden)}
-                        title="Ver detalle"
-                        style={estilos.btnAccion("rgba(44,85,69,0.6)", "rgba(44,85,69,0.06)")}>
-                        <Eye size={13} />
-                      </button>
-                      {orden.estado === "abierta" && (
-                        <>
-                          <button
-                            onClick={() => window.open(`/comanda/${orden.id}`, "_blank")}
-                            title="Ver comanda"
-                            style={estilos.btnAccion(COLOR.verde, "rgba(44,85,69,0.08)")}>
-                            <Printer size={13} />
-                          </button>
-                          <button
-                            onClick={() => abrirEditar(orden)}
-                            title="Editar orden"
-                            style={estilos.btnAccion(COLOR.dorado, "rgba(201,168,76,0.12)")}>
-                            <PenLine size={13} />
-                          </button>
-                          <button
-                            onClick={() => setAnularTarget(orden)}
-                            title="Anular orden"
-                            style={estilos.btnAccion(COLOR.rojo, COLOR.rojoPal)}>
-                            <Ban size={13} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
+              <thead>
+                <tr style={{ background: "rgba(44,85,69,0.04)" }}>
+                  {[
+                    { label: "#", cls: "" },
+                    { label: "Tipo", cls: "" },
+                    { label: "Mesa / Cliente", cls: "" },
+                    { label: "Ítems", cls: "hidden sm:table-cell" },
+                    { label: "Total", cls: "" },
+                    { label: "Estado", cls: "" },
+                    { label: "Hora", cls: "hidden sm:table-cell" },
+                    { label: "Acciones", cls: "" },
+                  ].map(({ label, cls }) => (
+                    <th key={label} className={cls} style={{ padding: "10px 14px", textAlign: "left",
+                      fontFamily: "'Lato',sans-serif", fontSize: 11, fontWeight: 700,
+                      color: "rgba(44,85,69,0.6)", textTransform: "uppercase",
+                      letterSpacing: "0.07em", borderBottom: `1px solid ${COLOR.borde}` }}>
+                      {label}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {ordenes.map((orden, idx) => (
+                  <tr key={orden.id}
+                    style={{ background: idx % 2 === 0 ? "white" : "rgba(44,85,69,0.015)",
+                      borderBottom: `1px solid ${COLOR.borde}` }}>
+                    <td style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
+                        fontWeight: 700, color: COLOR.verde }}>#{orden.id}</span>
+                    </td>
+                    <td style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12,
+                        color: "#555" }}>{orden.tipo_orden_display || orden.tipo_orden}</span>
+                    </td>
+                    <td style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#555" }}>
+                        {orden.mesa_numero ? `Mesa ${orden.mesa_numero}`
+                          : orden.cliente_nombre || orden.plataforma_delivery || "—"}
+                      </span>
+                    </td>
+                    <td className="hidden sm:table-cell" style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 12, color: "#555" }}>
+                        {orden.detalles?.length || 0}
+                      </span>
+                    </td>
+                    <td style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 13,
+                        fontWeight: 700, color: COLOR.verde }}>
+                        S/ {parseFloat(orden.total).toFixed(2)}
+                      </span>
+                    </td>
+                    <td style={estilos.td}>
+                      <StatusBadge estado={orden.estado} />
+                    </td>
+                    <td className="hidden sm:table-cell" style={estilos.td}>
+                      <span style={{ fontFamily: "'Lato',sans-serif", fontSize: 11, color: "#888" }}>
+                        {formatDateTime(orden.fecha_creacion)}
+                      </span>
+                    </td>
+                    <td style={estilos.td}>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          onClick={() => abrirVer(orden)}
+                          title="Ver detalle"
+                          style={estilos.btnAccion("rgba(44,85,69,0.6)", "rgba(44,85,69,0.06)")}>
+                          <Eye size={13} />
+                        </button>
+                        {orden.estado === "abierta" && (
+                          <>
+                            <button
+                              onClick={() => window.open(`/comanda/${orden.id}`, "_blank")}
+                              title="Ver comanda"
+                              style={estilos.btnAccion(COLOR.verde, "rgba(44,85,69,0.08)")}>
+                              <Printer size={13} />
+                            </button>
+                            <button
+                              onClick={() => abrirEditar(orden)}
+                              title="Editar orden"
+                              style={estilos.btnAccion(COLOR.dorado, "rgba(201,168,76,0.12)")}>
+                              <PenLine size={13} />
+                            </button>
+                            <button
+                              onClick={() => setAnularTarget(orden)}
+                              title="Anular orden"
+                              style={estilos.btnAccion(COLOR.rojo, COLOR.rojoPal)}>
+                              <Ban size={13} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {/* ── Drawer editar orden ── */}
       {ordenEditar && (
         <div style={{
-          position: "fixed", top: 0, right: 0, bottom: 0, width: 420,
+          position: "fixed", top: 0, right: 0, bottom: 0, width: drawerAncho,
           background: "white", boxShadow: "-4px 0 30px rgba(0,0,0,0.12)",
           zIndex: 1000, display: "flex", flexDirection: "column", overflowY: "auto",
         }}>
@@ -847,16 +988,31 @@ export default function OrdenesPage() {
           {/* Catálogo para agregar — solo en modo editar */}
           <div style={{ padding: "14px 16px", flex: 1, display: drawerModo === "ver" ? "none" : "block" }}>
             <p style={estilos.seccionLabel}>Agregar productos</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-              {productos.map((prod) => (
-                <ProductoCard key={`ep-${prod.id}`} item={prod} esPromo={false}
-                  onClick={agregarItemEditar} />
-              ))}
-              {promociones.map((promo) => (
-                <ProductoCard key={`epr-${promo.id}`} item={promo} esPromo={true}
-                  onClick={agregarItemEditar} />
-              ))}
-            </div>
+
+            {descartables.length > 0 && (
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
+                {descartables.map((d) => {
+                  const key = `prod-${d.id}`;
+                  const marcado = itemsEditar.some((i) => i.key === key);
+                  return (
+                    <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 6,
+                      fontFamily: "'Lato',sans-serif", fontSize: 12.5, fontWeight: 600,
+                      color: COLOR.verde, cursor: "pointer" }}>
+                      <input type="checkbox" checked={marcado}
+                        onChange={() => marcado ? quitarItemEditar(key) : agregarItemEditar(d, false)} />
+                      {d.nombre}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+
+            <CatalogoSelector
+              productos={productosCatalogo}
+              promociones={promociones}
+              onAgregar={agregarItemEditar}
+              gridMinWidth={130}
+            />
 
             {/* Items a agregar */}
             {itemsEditar.length > 0 && (
@@ -909,7 +1065,7 @@ export default function OrdenesPage() {
 
       {/* Total en modo ver */}
       {ordenEditar && drawerModo === "ver" && (
-        <div style={{ position: "fixed", bottom: 0, right: 0, width: 420,
+        <div style={{ position: "fixed", bottom: 0, right: 0, width: drawerAncho,
           padding: "14px 18px", background: "white",
           borderTop: `2px solid ${COLOR.borde}`, zIndex: 1001,
           display: "flex", justifyContent: "space-between", alignItems: "center" }}>

@@ -1,6 +1,6 @@
-# memos_cafe/caja/managers.py — sin cambios estructurales, igual que antes
-from django.db import models
-from django.db.models import Sum, Count, DecimalField
+﻿from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Sum, Count, DecimalField, Case, When
 from django.db.models.functions import Coalesce
 from django.db.models import Value
 
@@ -14,6 +14,14 @@ class CajaManager(models.Manager):
         if not caja:
             raise ValueError("No hay una sesión de caja abierta.")
         return caja
+
+    def get_sesion_abierta_para_cierre(self):
+        """Usa select_for_update para bloquear la fila durante el cierre
+        y evitar que dos cierres concurrentes pisen el mismo registro."""
+        try:
+            return self.select_for_update().get(estado="abierta")
+        except ObjectDoesNotExist:
+            raise ValueError("No hay una sesión de caja abierta.")
 
 
 class PagoManager(models.Manager):
@@ -41,3 +49,26 @@ class PagoManager(models.Manager):
             )
             .order_by("-total")
         )
+
+
+class MovimientoCajaManager(models.Manager):
+    def neto_por_caja(self, caja):
+        """Entradas menos salidas de movimientos manuales de esta caja.
+        Debe sumarse al esperado en caja junto con las ventas."""
+        resultado = (
+            self.filter(caja=caja)
+            .aggregate(
+                neto=Coalesce(
+                    Sum(
+                        Case(
+                            When(tipo="entrada", then="monto"),
+                            When(tipo="salida", then=-models.F("monto")),
+                            output_field=DecimalField(),
+                        )
+                    ),
+                    Value(0),
+                    output_field=DecimalField(),
+                )
+            )
+        )
+        return resultado["neto"]

@@ -1,16 +1,29 @@
 import { useState } from "react";
 import { X, Tag } from "lucide-react";
+import { esSoloAlfanumerico, LIMITES, MENSAJES } from "../../utils/validators";
 
 export function CategoryModal({ onClose, onSave }) {
   const [name, setName]       = useState("");
   const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
 
+  const validarNombre = (trimmed) => {
+    if (!trimmed) return "El nombre es obligatorio.";
+    if (trimmed.length < 2) return "Minimo 2 caracteres.";
+    if (!esSoloAlfanumerico(trimmed)) return MENSAJES.SOLO_ALFANUMERICO;
+    return null;
+  };
+
+  const handleBlur = () => {
+    const msg = validarNombre(name.trim());
+    setError(msg || "");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) { setError("El nombre es obligatorio."); return; }
-    if (trimmed.length < 2) { setError("Minimo 2 caracteres."); return; }
+    const msg = validarNombre(trimmed);
+    if (msg) { setError(msg); return; }
     setLoading(true);
     setError("");
     try {
@@ -53,6 +66,8 @@ export function CategoryModal({ onClose, onSave }) {
             </label>
             <input type="text" value={name}
               onChange={(e) => { setName(e.target.value); if (error) setError(""); }}
+              onBlur={handleBlur}
+              maxLength={LIMITES.NOMBRE_CATEGORIA}
               placeholder="Ej: Bebidas, Postres, Entradas..."
               disabled={loading} autoFocus
               style={{ fontFamily: "'Lato', sans-serif", width: "100%", padding: "10px 14px",
@@ -60,7 +75,6 @@ export function CategoryModal({ onClose, onSave }) {
                 backgroundColor: loading ? "rgba(44,85,69,0.04)" : "#fff",
                 color: "#2C5545", fontSize: 14, outline: "none" }}
               onFocus={(e) => { if (!error) e.target.style.borderColor = "#C9A84C"; }}
-              onBlur={(e) => { if (!error) e.target.style.borderColor = "rgba(44,85,69,0.25)"; }}
             />
             {error && <p style={{ fontFamily: "'Lato', sans-serif", color: "#d4183d", fontSize: 12, marginTop: 5 }}>{error}</p>}
             <p style={{ fontFamily: "'Lato', sans-serif", color: "rgba(44,85,69,0.5)", fontSize: 12, marginTop: 6 }}>

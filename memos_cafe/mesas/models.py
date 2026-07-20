@@ -1,6 +1,4 @@
-from django.db import models
-
-from django.db import models
+﻿from django.db import models
 
 
 class Mesa(models.Model):
@@ -31,14 +29,17 @@ class Mesa(models.Model):
     # --- Lógica de negocio ---
 
     def ocupar(self):
-        """El mesero abre una orden → la mesa pasa a ocupada."""
-        if self.estado != self.Estado.LIBRE:
-            raise ValueError(f"La mesa {self.numero} no está libre.")
+        """El mesero abre una orden → la mesa pasa a ocupada.
+        Puede ocuparse tanto una mesa libre como una reservada
+        (el cliente de la reserva llega y se le crea la orden)."""
+        if self.estado not in (self.Estado.LIBRE, self.Estado.RESERVADA):
+            raise ValueError(f"La mesa {self.numero} no está disponible para ocupar.")
         self.estado = self.Estado.OCUPADA
         self.save(update_fields=["estado"])
 
     def liberar(self):
-        """El cajero cobra la orden → la mesa vuelve a libre."""
+        """El cajero cobra la orden (o se anula) → la mesa vuelve a libre.
+        Siempre automático, nunca manual."""
         self.estado = self.Estado.LIBRE
         self.save(update_fields=["estado"])
 

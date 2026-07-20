@@ -52,6 +52,7 @@ dev = [
   "djangorestframework-stubs==3.16.9",
   "djlint==1.36.4",
   "factory-boy==3.3.3",
+  "import-linter==2.13",
   "ipdb==0.13.13",
   "mypy==1.20.2",
   "pre-commit==4.6.0",
@@ -190,3 +191,13 @@ indent_size = 2
 
 [tool.djlint.js]
 indent_size = 2
+
+# ==== Pyrefly ====
+# Pyrefly es un linter externo de VS Code. El type checker oficial del proyecto
+# es mypy con mypy-drf-plugin (ver sección [tool.mypy] arriba).
+# Los errores bad-override en clases Meta de DRF son falsos positivos:
+# SerializerMetaclass procesa Meta en tiempo de ejecución de una forma que
+# Pyrefly no puede inferir estáticamente. Se deshabilitan aquí para evitar
+# contaminar los archivos con comentarios # pyrefly: ignore.
+[tool.pyrefly]
+errors_to_ignore = ["bad-override"]
