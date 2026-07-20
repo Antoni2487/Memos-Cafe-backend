@@ -7,6 +7,7 @@ import registroInsumoService from "../../services/registroInsumoService";
 import DataTable from "../../components/common/DataTable";
 import { SearchBar, StatCard } from "../../components/common/SearchBar-StatCard";
 import { FormModal, ConfirmDialog } from "../../components/common/Modals";
+import { esSoloAlfanumerico, LIMITES, MENSAJES } from "../../utils/validators";
 
 const inputStyle = {
     width: "100%",
@@ -76,7 +77,27 @@ export default function InsumosPage() {
     const [form, setForm] = useState({ insumo: "", cantidad: "", costo_unitario: "", proveedor: "", observaciones: "" });
     const [formInsumo, setFormInsumo] = useState({ nombre: "", unidad: "kg", stock_minimo: 0 });
     const [error, setError] = useState(null);
+    const [erroresGasto, setErroresGasto] = useState({});
+    const [erroresInsumo, setErroresInsumo] = useState({});
     const [guardando, setGuardando] = useState(false);
+
+    const validarCampoLibre = (valor) => (valor && !esSoloAlfanumerico(valor)) ? MENSAJES.SOLO_ALFANUMERICO : null;
+
+    const validarGasto = () => {
+        const e = {};
+        const errProveedor = validarCampoLibre(form.proveedor);
+        if (errProveedor) e.proveedor = errProveedor;
+        const errObs = validarCampoLibre(form.observaciones);
+        if (errObs) e.observaciones = errObs;
+        return e;
+    };
+
+    const validarInsumoForm = () => {
+        const e = {};
+        if (!formInsumo.nombre.trim()) e.nombre = "El nombre es obligatorio";
+        else if (!esSoloAlfanumerico(formInsumo.nombre)) e.nombre = MENSAJES.SOLO_ALFANUMERICO;
+        return e;
+    };
 
     const insumosActivos = insumos.filter((i) => i.activo);
     const stockBajoCount = insumos.filter((i) => i.activo && i.stock_bajo).length;
@@ -102,10 +123,14 @@ export default function InsumosPage() {
     // ── Acciones: gasto ──
     const handleSubmitGasto = async () => {
         setError(null);
+        const e = validarGasto();
+        setErroresGasto(e);
+        if (Object.keys(e).length) return;
         setGuardando(true);
         try {
             await registroInsumoService.registrar(form);
             setForm({ insumo: "", cantidad: "", costo_unitario: "", proveedor: "", observaciones: "" });
+            setErroresGasto({});
             setModalGasto(false);
             await Promise.all([recargarRegistros(), recargarInsumos()]);
         } catch (err) {
@@ -120,6 +145,7 @@ export default function InsumosPage() {
         setInsumoEditando(null);
         setFormInsumo({ nombre: "", unidad: "kg", stock_minimo: 0 });
         setError(null);
+        setErroresInsumo({});
         setModalInsumo(true);
     };
 
@@ -127,11 +153,15 @@ export default function InsumosPage() {
         setInsumoEditando(insumo);
         setFormInsumo({ nombre: insumo.nombre, unidad: insumo.unidad, stock_minimo: insumo.stock_minimo });
         setError(null);
+        setErroresInsumo({});
         setModalInsumo(true);
     };
 
     const handleSubmitInsumo = async () => {
         setError(null);
+        const e = validarInsumoForm();
+        setErroresInsumo(e);
+        if (Object.keys(e).length) return;
         setGuardando(true);
         try {
             if (insumoEditando) {
@@ -334,12 +364,18 @@ export default function InsumosPage() {
 
                 <div>
                     <label style={labelStyle}>Proveedor (opcional)</label>
-                    <input value={form.proveedor} onChange={(e) => setForm({ ...form, proveedor: e.target.value })} style={inputStyle} />
+                    <input value={form.proveedor} onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
+                        onBlur={(e) => setErroresGasto((p) => ({ ...p, proveedor: validarCampoLibre(e.target.value) }))}
+                        maxLength={LIMITES.PROVEEDOR} style={inputStyle} />
+                    {erroresGasto.proveedor && <p style={{ color: "#c62828", fontSize: "11.5px", margin: "3px 0 0" }}>{erroresGasto.proveedor}</p>}
                 </div>
 
                 <div>
                     <label style={labelStyle}>Observaciones (opcional)</label>
-                    <input value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} style={inputStyle} />
+                    <input value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+                        onBlur={(e) => setErroresGasto((p) => ({ ...p, observaciones: validarCampoLibre(e.target.value) }))}
+                        maxLength={LIMITES.OBSERVACIONES} style={inputStyle} />
+                    {erroresGasto.observaciones && <p style={{ color: "#c62828", fontSize: "11.5px", margin: "3px 0 0" }}>{erroresGasto.observaciones}</p>}
                 </div>
             </FormModal>
 
@@ -359,10 +395,13 @@ export default function InsumosPage() {
                     <input
                         value={formInsumo.nombre}
                         onChange={(e) => setFormInsumo({ ...formInsumo, nombre: e.target.value })}
+                        onBlur={() => setErroresInsumo(validarInsumoForm())}
                         placeholder="Ej: Café molido"
                         required
+                        maxLength={LIMITES.NOMBRE}
                         style={inputStyle}
                     />
+                    {erroresInsumo.nombre && <p style={{ color: "#c62828", fontSize: "11.5px", margin: "3px 0 0" }}>{erroresInsumo.nombre}</p>}
                 </div>
                 <div>
                     <label style={labelStyle}>Unidad</label>

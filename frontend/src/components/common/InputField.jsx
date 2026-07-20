@@ -4,6 +4,7 @@ export default function InputField({
   type = "text",
   value,
   onChange,
+  onBlur,
   placeholder,
   required = false,
   error,
@@ -12,6 +13,7 @@ export default function InputField({
   rows,
   min,
   max,
+  maxLength,
 }) {
   const baseStyle = {
     width: "100%",
@@ -67,10 +69,12 @@ export default function InputField({
         <textarea
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
+          onBlur={(e) => onBlur?.(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
           required={required}
           rows={rows}
+          maxLength={maxLength}
           style={{ ...baseStyle, resize: "vertical", lineHeight: 1.5 }}
         />
 
@@ -85,10 +89,29 @@ export default function InputField({
           required={required}
           min={min}
           max={max}
+          maxLength={maxLength}
           style={baseStyle}
           onFocus={(e) => { if (!error) e.target.style.borderColor = "#2C5545"; }}
-          onBlur={(e) => { if (!error) e.target.style.borderColor = "rgba(44,85,69,0.2)"; }}
+          onBlur={(e) => {
+            if (!error) e.target.style.borderColor = "rgba(44,85,69,0.2)";
+            onBlur?.(e.target.value);
+          }}
         />
+      )}
+
+      {/* Ayuda de límite de caracteres */}
+      {maxLength && typeof value === "string" && !error && (
+        <p
+          style={{
+            fontFamily: "'Lato', sans-serif",
+            fontSize: "10.5px",
+            color: "rgba(44,85,69,0.4)",
+            margin: 0,
+            textAlign: "right",
+          }}
+        >
+          {value.length}/{maxLength}
+        </p>
       )}
 
       {/* Error */}

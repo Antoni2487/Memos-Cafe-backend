@@ -6,6 +6,7 @@ import {
 import useCaja from "../../hooks/useCaja";
 import cajaService from "../../services/cajaService";
 import { PageHeader } from "../../components/common";
+import { esSoloAlfanumerico, validarDocumentoComprobante, LIMITES, MENSAJES } from "../../utils/validators";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => `S/ ${Number(n ?? 0).toFixed(2)}`;
@@ -49,7 +50,7 @@ function Btn({ onClick, color, outline, children, disabled, full, size = "md" })
     );
 }
 
-function Campo({ label, type = "text", value, onChange, placeholder, readOnly, hint }) {
+function Campo({ label, type = "text", value, onChange, onBlur, placeholder, readOnly, hint, maxLength, error }) {
     return (
         <div style={{ marginBottom: 14 }}>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.verde, marginBottom: 4 }}>
@@ -58,14 +59,17 @@ function Campo({ label, type = "text", value, onChange, placeholder, readOnly, h
             <input
                 type={type} value={value}
                 onChange={readOnly ? undefined : (e) => onChange(e.target.value)}
-                readOnly={readOnly} placeholder={placeholder}
+                onBlur={readOnly ? undefined : (e) => onBlur?.(e.target.value)}
+                readOnly={readOnly} placeholder={placeholder} maxLength={maxLength}
                 style={{
                     width: "100%", padding: "9px 12px", borderRadius: 8, fontSize: 13,
-                    border: `1px solid ${C.borde}`, outline: "none", boxSizing: "border-box",
+                    border: `1px solid ${error ? "#c62828" : C.borde}`, outline: "none", boxSizing: "border-box",
                     background: readOnly ? C.bg : "white",
                 }}
             />
-            {hint && <p style={{ margin: "3px 0 0", fontSize: 11, color: "#888" }}>{hint}</p>}
+            {error
+                ? <p style={{ margin: "3px 0 0", fontSize: 11, color: "#c62828" }}>{error}</p>
+                : hint && <p style={{ margin: "3px 0 0", fontSize: 11, color: "#888" }}>{hint}</p>}
         </div>
     );
 }
@@ -261,6 +265,8 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
             return setErr("El monto recibido no puede ser menor al monto a cobrar.");
         if (esTarjeta && !numOp.trim())
             return setErr("Ingresa el número de operación.");
+        if (esTarjeta && numOp.trim() && !esSoloAlfanumerico(numOp))
+            return setErr(MENSAJES.SOLO_ALFANUMERICO);
 
         setGuardando(true);
         try {
@@ -399,6 +405,7 @@ function ModalCobrar({ orden, onCerrar, onPagado }) {
                     label="Número de operación (POS) *"
                     value={numOp}
                     onChange={setNumOp}
+                    maxLength={LIMITES.NUM_OPERACION}
                     placeholder="Ej: 123456"
                 />
             )}
@@ -436,8 +443,10 @@ function ModalComprobante({ pago, onCerrar, onEmitido }) {
     const handleEmitir = async () => {
         setErr("");
         if (!numero) return setErr("Ingresa el número de comprobante.");
-        if (esFactura && (!nombre.trim() || !rucDni.trim()))
-            return setErr("Para factura se requiere razón social y RUC.");
+        if (esFactura && !nombre.trim())
+            return setErr("Para factura se requiere razón social.");
+        const errDoc = validarDocumentoComprobante(tipo, rucDni);
+        if (errDoc) return setErr(errDoc);
 
         setGuardando(true);
         try {
@@ -491,7 +500,8 @@ function ModalComprobante({ pago, onCerrar, onEmitido }) {
 
             <div style={{ display: "flex", gap: 10 }}>
                 <div style={{ flex: "0 0 100px" }}>
-                    <Campo label="Serie" value={serie} onChange={setSerie} placeholder="B001" />
+                    <Campo label="Serie" value={serie} onChange={setSerie}
+                        maxLength={LIMITES.SERIE} placeholder="B001" />
                 </div>
                 <div style={{ flex: 1 }}>
                     <Campo label="Número" type="number" value={numero}
@@ -500,10 +510,14 @@ function ModalComprobante({ pago, onCerrar, onEmitido }) {
             </div>
 
             <Campo label={esFactura ? "Razón social *" : "Nombre del cliente (opcional)"}
-                value={nombre} onChange={setNombre} placeholder={esFactura ? "Empresa S.A.C." : "Nombre"} />
+                value={nombre} onChange={setNombre}
+                maxLength={LIMITES.NOMBRE_PERSONA}
+                placeholder={esFactura ? "Empresa S.A.C." : "Nombre"} />
 
             <Campo label={esFactura ? "RUC *" : "DNI (opcional)"}
                 value={rucDni} onChange={setRucDni}
+                onBlur={(v) => setErr(validarDocumentoComprobante(tipo, v) || "")}
+                maxLength={LIMITES.RUC_DNI}
                 placeholder={esFactura ? "20xxxxxxxxx" : "12345678"} />
 
             {esFactura && (
@@ -724,6 +738,7 @@ export default function CajaPage() {
 
     const handleMovimiento = async () => {
         if (!montoMov || !motivoMov) return setErrMsg("Completa todos los campos.");
+        if (!esSoloAlfanumerico(motivoMov)) return setErrMsg(MENSAJES.SOLO_ALFANUMERICO);
         try {
             setGuardando(true); setErrMsg("");
             await cajaService.registrarMovimiento({ tipo: tipoMov, monto: montoMov, motivo: motivoMov });
@@ -744,6 +759,10 @@ export default function CajaPage() {
         if (!pagoAnular) return;
         if (motivoAnular === "otro" && !detalleAnular.trim()) {
             alert("Para el motivo 'Otro' debes especificar un detalle.");
+            return;
+        }
+        if (detalleAnular.trim() && !esSoloAlfanumerico(detalleAnular)) {
+            alert(MENSAJES.SOLO_ALFANUMERICO);
             return;
         }
         setAnulando(true);
@@ -1017,6 +1036,7 @@ export default function CajaPage() {
                             label="Detalle (obligatorio) *"
                             value={detalleAnular}
                             onChange={setDetalleAnular}
+                            maxLength={LIMITES.OBSERVACIONES}
                             placeholder="Especifica el motivo..."
                         />
                     )}
@@ -1059,6 +1079,7 @@ export default function CajaPage() {
                     <Campo label="Monto (S/)" type="number" value={montoMov}
                         onChange={setMontoMov} placeholder="0.00" />
                     <Campo label="Motivo" value={motivoMov} onChange={setMotivoMov}
+                        maxLength={LIMITES.MOTIVO}
                         placeholder="Ej: Compra de insumos" />
                     <ErrMsg msg={errMsg} />
                     <Btn onClick={handleMovimiento} disabled={guardando} full>
@@ -1087,7 +1108,8 @@ export default function CajaPage() {
                     <Campo label="Monto final contado (S/)" type="number"
                         value={montoFinal} onChange={setMontoFinal} placeholder="0.00" />
                     <Campo label="Observaciones (opcional)" value={obsCierre}
-                        onChange={setObsCierre} placeholder="Ej: Faltaron S/5 en efectivo" />
+                        onChange={setObsCierre} maxLength={LIMITES.DESCRIPCION}
+                        placeholder="Ej: Faltaron S/5 en efectivo" />
                     {montoFinal && (() => {
                         const diff = Number(montoFinal) - (Number(caja.monto_inicial) + totalVentas);
                         return (

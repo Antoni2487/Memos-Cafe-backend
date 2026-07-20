@@ -9,6 +9,7 @@ import StatusBadge from "../../components/common/StatusBadge";
 import { ConfirmDialog } from "../../components/common/Modals";
 import { SearchBar } from "../../components/common";
 import { useIsMobile } from "../../hooks/useMediaQuery";
+import { esSoloAlfabetico, esSoloAlfanumerico, esSoloNumerico, LIMITES, MENSAJES } from "../../utils/validators";
 
 const PLATAFORMA_OPCIONES = [
   { value: PLATAFORMA_DELIVERY.RAPPI,      label: "Rappi" },
@@ -342,9 +343,16 @@ export default function OrdenesPage() {
   const handleCrear = async () => {
     const err = {};
     if (tipoOrden === TIPO_ORDEN.MESA && !mesaId) err.mesa = "Seleccioná una mesa";
-    if (tipoOrden === TIPO_ORDEN.DELIVERY && !plataforma) err.plataforma = "Seleccioná la plataforma";
-    if (tipoOrden === TIPO_ORDEN.DELIVERY && plataforma === PLATAFORMA_DELIVERY.OTRO && !plataformaOtra.trim())
-      err.plataformaOtra = "Escribí el nombre";
+    if (tipoOrden === TIPO_ORDEN.DELIVERY) {
+      if (!plataforma) err.plataforma = "Seleccioná la plataforma";
+      if (plataforma === PLATAFORMA_DELIVERY.OTRO) {
+        if (!plataformaOtra.trim()) err.plataformaOtra = "Escribí el nombre";
+        else if (!esSoloAlfanumerico(plataformaOtra)) err.plataformaOtra = MENSAJES.SOLO_ALFANUMERICO;
+      }
+      if (clienteNombre && !esSoloAlfabetico(clienteNombre)) err.clienteNombre = MENSAJES.SOLO_ALFABETICO;
+      if (clienteTelefono && !esSoloNumerico(clienteTelefono)) err.clienteTelefono = MENSAJES.SOLO_NUMERICO;
+      if (direccionEntrega && !esSoloAlfanumerico(direccionEntrega)) err.direccionEntrega = MENSAJES.SOLO_ALFANUMERICO;
+    }
     if (items.length === 0) err.items = "Agregá al menos un ítem";
     if (Object.keys(err).length) { setErrForm(err); return; }
 
@@ -574,21 +582,32 @@ export default function OrdenesPage() {
                 {plataforma === PLATAFORMA_DELIVERY.OTRO && (
                   <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                     <label style={estilos.inputLabel}>Nombre de plataforma *</label>
-                    <input value={plataformaOtra} onChange={e => setPlataformaOtra(e.target.value)} style={estilos.input} />
+                    <input value={plataformaOtra} onChange={e => setPlataformaOtra(e.target.value)}
+                      onBlur={e => setErrForm(f => ({ ...f, plataformaOtra: (e.target.value.trim() && !esSoloAlfanumerico(e.target.value)) ? MENSAJES.SOLO_ALFANUMERICO : undefined }))}
+                      maxLength={LIMITES.PLATAFORMA_OTRA} style={estilos.input} />
                     {errForm.plataformaOtra && <p style={estilos.errorTxt}>{errForm.plataformaOtra}</p>}
                   </div>
                 )}
                 <div>
                   <label style={estilos.inputLabel}>Cliente</label>
-                  <input value={clienteNombre} onChange={e => setClienteNombre(e.target.value)} style={estilos.input} placeholder="Nombre" />
+                  <input value={clienteNombre} onChange={e => setClienteNombre(e.target.value)}
+                    onBlur={e => setErrForm(f => ({ ...f, clienteNombre: (e.target.value && !esSoloAlfabetico(e.target.value)) ? MENSAJES.SOLO_ALFABETICO : undefined }))}
+                    maxLength={LIMITES.NOMBRE_PERSONA} style={estilos.input} placeholder="Nombre" />
+                  {errForm.clienteNombre && <p style={estilos.errorTxt}>{errForm.clienteNombre}</p>}
                 </div>
                 <div>
                   <label style={estilos.inputLabel}>Teléfono</label>
-                  <input value={clienteTelefono} onChange={e => setClienteTelefono(e.target.value)} style={estilos.input} placeholder="999 999 999" />
+                  <input value={clienteTelefono} onChange={e => setClienteTelefono(e.target.value)}
+                    onBlur={e => setErrForm(f => ({ ...f, clienteTelefono: (e.target.value && !esSoloNumerico(e.target.value)) ? MENSAJES.SOLO_NUMERICO : undefined }))}
+                    maxLength={LIMITES.TELEFONO} style={estilos.input} placeholder="999 999 999" />
+                  {errForm.clienteTelefono && <p style={estilos.errorTxt}>{errForm.clienteTelefono}</p>}
                 </div>
                 <div style={{ gridColumn: isMobile ? "auto" : "1 / -1" }}>
                   <label style={estilos.inputLabel}>Dirección de entrega</label>
-                  <input value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)} style={estilos.input} placeholder="Av. ..." />
+                  <input value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)}
+                    onBlur={e => setErrForm(f => ({ ...f, direccionEntrega: (e.target.value && !esSoloAlfanumerico(e.target.value)) ? MENSAJES.SOLO_ALFANUMERICO : undefined }))}
+                    maxLength={LIMITES.DIRECCION} style={estilos.input} placeholder="Av. ..." />
+                  {errForm.direccionEntrega && <p style={estilos.errorTxt}>{errForm.direccionEntrega}</p>}
                 </div>
               </div>
             </div>
