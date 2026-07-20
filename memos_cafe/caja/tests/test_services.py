@@ -2,6 +2,7 @@ import pytest
 from decimal import Decimal
 from memos_cafe.caja.services import CajaService, PagoService, ComprobanteService
 from memos_cafe.caja.models import Caja, MovimientoCaja, Pago, Comprobante
+from memos_cafe.caja.api.serializers import CajaReadSerializer
 from memos_cafe.caja.tests.factories import CajaFactory, OrdenFactory
 from memos_cafe.users.tests.factories import UserFactory
 
@@ -78,6 +79,78 @@ class TestCajaService:
                 monto=Decimal("50.00"),
                 motivo="test",
             )
+
+
+class TestMovimientoCajaNeto:
+    """El badge/lista de movimientos y el cuadre de caja dependen de que
+    neto_por_caja sume entradas y reste salidas, no solo salidas."""
+
+    def test_neto_por_caja_solo_entradas(self):
+        caja = CajaFactory()
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("30.00"), motivo="Fondo"
+        )
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("20.00"), motivo="Fondo 2"
+        )
+        assert MovimientoCaja.objects.neto_por_caja(caja) == Decimal("50.00")
+
+    def test_neto_por_caja_solo_salidas(self):
+        caja = CajaFactory()
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.SALIDA, monto=Decimal("15.00"), motivo="Compra"
+        )
+        assert MovimientoCaja.objects.neto_por_caja(caja) == Decimal("-15.00")
+
+    def test_neto_por_caja_entradas_y_salidas_mixtas(self):
+        """Caso critico: una entrada y una salida en la misma caja deben
+        netearse, no ignorarse una de las dos."""
+        caja = CajaFactory()
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("100.00"), motivo="Fondo adicional"
+        )
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.SALIDA, monto=Decimal("30.00"), motivo="Compra de insumos"
+        )
+        assert MovimientoCaja.objects.neto_por_caja(caja) == Decimal("70.00")
+        assert caja.movimientos.count() == 2
+
+    def test_neto_por_caja_sin_movimientos_es_cero(self):
+        caja = CajaFactory()
+        assert MovimientoCaja.objects.neto_por_caja(caja) == Decimal("0")
+
+    def test_esperado_en_caja_incluye_entrada_y_salida(self):
+        """CajaReadSerializer.esperado_en_caja debe sumar el fondo inicial,
+        las ventas y el neto de movimientos (no solo las salidas)."""
+        caja = CajaFactory(monto_inicial=Decimal("100.00"))
+        orden = OrdenFactory(estado="abierta", total=Decimal("50.00"))
+        PagoService.procesar_pago(orden=orden, metodo_pago="efectivo", monto=Decimal("50.00"))
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("40.00"), motivo="Fondo adicional"
+        )
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.SALIDA, monto=Decimal("25.00"), motivo="Compra de insumos"
+        )
+
+        data = CajaReadSerializer(caja).data
+        # 100 (inicial) + 50 (ventas) + 40 (entrada) - 25 (salida) = 165
+        assert data["movimientos_neto"] == Decimal("15.00")
+        assert data["esperado_en_caja"] == Decimal("165.00")
+
+    def test_cerrar_sesion_diferencia_cero_con_movimientos_mixtos_cuadrados(self):
+        """El cierre no debe exigir observaciones si la caja cuadra
+        exactamente, incluyendo entradas y salidas manuales."""
+        caja = CajaFactory(monto_inicial=Decimal("100.00"))
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.ENTRADA, monto=Decimal("40.00"), motivo="Fondo adicional"
+        )
+        CajaService.registrar_movimiento(
+            tipo=MovimientoCaja.Tipo.SALIDA, monto=Decimal("25.00"), motivo="Compra de insumos"
+        )
+        # esperado = 100 + 0 (sin ventas) + 40 - 25 = 115
+        caja_cerrada = CajaService.cerrar_sesion(Decimal("115.00"))
+        assert caja_cerrada.estado == Caja.Estado.CERRADA
+        assert CajaReadSerializer(caja_cerrada).data["diferencia"] == Decimal("0.00")
 
 
 class TestCajaModel:
