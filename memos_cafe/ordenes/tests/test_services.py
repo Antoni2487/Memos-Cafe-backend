@@ -45,6 +45,20 @@ class TestOrdenServiceCrearOrdenOcupaMesa:
 
         assert orden.mesa_id is None
 
+    def test_crear_orden_sin_caja_abierta_lanza_error(self):
+        # A proposito NO se crea CajaFactory(): ningun turno abierto.
+        usuario = UserFactory()
+        mesa = MesaFactory(estado=Mesa.Estado.LIBRE)
+        producto = ProductoFactory(precio=Decimal("10.00"))
+
+        with pytest.raises(ValueError, match="sesion de caja abierta"):
+            OrdenService.crear_orden(
+                usuario=usuario,
+                tipo_orden="mesa",
+                mesa=mesa,
+                detalles=[{"producto": producto, "cantidad": 1}],
+            )
+
     def test_crear_orden_mesa_no_libre_lanza_error_y_no_crea_orden(self):
         from memos_cafe.ordenes.models import Orden
 

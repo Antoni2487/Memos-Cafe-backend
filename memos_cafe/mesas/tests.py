@@ -4,10 +4,51 @@ from rest_framework.test import APIClient
 
 from memos_cafe.caja.tests.factories import MesaFactory
 from memos_cafe.mesas.models import Mesa
+from memos_cafe.mesas.services import MesaService
 from memos_cafe.roles.models import PermisoRol
 from memos_cafe.users.tests.factories import UserFactory
 
 pytestmark = pytest.mark.django_db
+
+
+class TestMesaServiceCambiarEstado:
+    """Cambio de estado de mesa a nivel de servicio (sin pasar por la API).
+    Las unicas transiciones manuales permitidas son libre<->reservada; el
+    resto (incluyendo cualquier cosa hacia/desde 'ocupada') solo puede
+    darse automaticamente vía Mesa.ocupar()/liberar() al crear/cerrar
+    una orden, nunca por accion manual."""
+
+    @pytest.fixture
+    def mesa_libre(self):
+        return MesaFactory(estado=Mesa.Estado.LIBRE)
+
+    @pytest.fixture
+    def mesa_reservada(self):
+        return MesaFactory(estado=Mesa.Estado.RESERVADA)
+
+    def test_libre_a_reservada(self, mesa_libre):
+        MesaService.cambiar_estado(mesa_libre, Mesa.Estado.RESERVADA)
+        mesa_libre.refresh_from_db()
+        assert mesa_libre.estado == Mesa.Estado.RESERVADA
+
+    def test_reservada_a_libre(self, mesa_reservada):
+        MesaService.cambiar_estado(mesa_reservada, Mesa.Estado.LIBRE)
+        mesa_reservada.refresh_from_db()
+        assert mesa_reservada.estado == Mesa.Estado.LIBRE
+
+    @pytest.mark.parametrize("estado_actual,estado_destino", [
+        (Mesa.Estado.OCUPADA, Mesa.Estado.LIBRE),
+        (Mesa.Estado.OCUPADA, Mesa.Estado.RESERVADA),
+        (Mesa.Estado.LIBRE, Mesa.Estado.OCUPADA),
+        (Mesa.Estado.RESERVADA, Mesa.Estado.OCUPADA),
+        (Mesa.Estado.LIBRE, Mesa.Estado.LIBRE),
+    ])
+    def test_transiciones_manuales_invalidas_lanzan_error(self, estado_actual, estado_destino):
+        mesa = MesaFactory(estado=estado_actual)
+        with pytest.raises(ValueError, match="No se puede cambiar"):
+            MesaService.cambiar_estado(mesa, estado_destino)
+        mesa.refresh_from_db()
+        assert mesa.estado == estado_actual  # no debe mutar nada si falla
 
 
 @pytest.fixture

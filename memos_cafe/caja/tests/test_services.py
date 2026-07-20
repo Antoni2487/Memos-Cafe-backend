@@ -81,6 +81,37 @@ class TestCajaService:
             )
 
 
+class TestCerrarSesionConDiscrepancia:
+    """CajaService.cerrar_sesion exige observaciones cuando el faltante/
+    sobrante supera UMBRAL_DIFERENCIA_SIN_OBSERVACION (S/5.00)."""
+
+    @pytest.fixture
+    def caja_sin_ventas(self):
+        return CajaFactory(monto_inicial=Decimal("100.00"))
+
+    def test_discrepancia_grande_sin_observaciones_lanza_error(self, caja_sin_ventas):
+        # esperado = 100 (inicial) + 0 (ventas) + 0 (movimientos) = 100
+        # contado = 200 -> diferencia = 100, supera el umbral de 5
+        with pytest.raises(ValueError, match="supera el margen permitido"):
+            CajaService.cerrar_sesion(Decimal("200.00"))
+        caja_sin_ventas.refresh_from_db()
+        assert caja_sin_ventas.estado == Caja.Estado.ABIERTA  # no se cerro
+
+    def test_discrepancia_grande_con_observaciones_permite_cierre(self, caja_sin_ventas):
+        caja = CajaService.cerrar_sesion(
+            Decimal("200.00"), "Faltante grande, revisar con el turno siguiente"
+        )
+        assert caja.estado == Caja.Estado.CERRADA
+        assert caja.monto_final == Decimal("200.00")
+
+    @pytest.mark.parametrize("monto_final", [Decimal("100.00"), Decimal("104.99"), Decimal("95.01")])
+    def test_discrepancia_dentro_del_margen_no_exige_observaciones(self, caja_sin_ventas, monto_final):
+        # dentro de +-5.00 del esperado (100): no debe exigir observaciones
+        caja = CajaService.cerrar_sesion(monto_final)
+        assert caja.estado == Caja.Estado.CERRADA
+        assert caja.observaciones == ""
+
+
 class TestMovimientoCajaNeto:
     """El badge/lista de movimientos y el cuadre de caja dependen de que
     neto_por_caja sume entradas y reste salidas, no solo salidas."""

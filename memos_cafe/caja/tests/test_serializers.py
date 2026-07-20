@@ -8,7 +8,8 @@ from memos_cafe.caja.tests.factories import CajaFactory, OrdenFactory
 pytestmark = pytest.mark.django_db
 
 
-def _crear_pago_completado():
+@pytest.fixture
+def pago_completado():
     caja = CajaFactory()
     orden = OrdenFactory(estado="abierta", total=Decimal("50.00"))
     return Pago.objects.create(
@@ -29,84 +30,47 @@ def _payload(pago, tipo, cliente_ruc_dni="", cliente_nombre="Cliente de Prueba")
 
 
 class TestComprobanteWriteSerializerFactura:
-    def test_ruc_valido_pasa(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "factura", "12345678901"))
+    def test_ruc_valido_pasa(self, pago_completado):
+        serializer = ComprobanteWriteSerializer(data=_payload(pago_completado, "factura", "12345678901"))
         assert serializer.is_valid(), serializer.errors
 
-    def test_ruc_con_letras_falla(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "factura", "1234567890A"))
+    @pytest.mark.parametrize("ruc_invalido", [
+        pytest.param("1234567890A", id="con-letras"),
+        pytest.param("1234567890", id="10-digitos-de-menos"),
+        pytest.param("123456789012", id="12-digitos-de-mas"),
+        pytest.param("", id="vacio"),
+        pytest.param("12345678", id="dni-de-8-digitos-tipo-equivocado"),
+    ])
+    def test_ruc_invalido_falla(self, pago_completado, ruc_invalido):
+        serializer = ComprobanteWriteSerializer(data=_payload(pago_completado, "factura", ruc_invalido))
         assert not serializer.is_valid()
         assert "cliente_ruc_dni" in serializer.errors
 
-    def test_ruc_con_menos_digitos_falla(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "factura", "1234567890"))
-        assert not serializer.is_valid()
-        assert "cliente_ruc_dni" in serializer.errors
-
-    def test_ruc_con_mas_digitos_falla(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "factura", "123456789012"))
-        assert not serializer.is_valid()
-        assert "cliente_ruc_dni" in serializer.errors
-
-    def test_ruc_vacio_falla(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "factura", ""))
-        assert not serializer.is_valid()
-        assert "cliente_ruc_dni" in serializer.errors
-
-    def test_dni_de_8_digitos_en_una_factura_falla(self):
-        """Tipo de comprobante equivocado: una factura exige RUC (11), no DNI (8)."""
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "factura", "12345678"))
-        assert not serializer.is_valid()
-        assert "cliente_ruc_dni" in serializer.errors
-
-    def test_sin_nombre_falla(self):
-        pago = _crear_pago_completado()
+    def test_sin_nombre_falla(self, pago_completado):
         serializer = ComprobanteWriteSerializer(
-            data=_payload(pago, "factura", "12345678901", cliente_nombre="")
+            data=_payload(pago_completado, "factura", "12345678901", cliente_nombre="")
         )
         assert not serializer.is_valid()
         assert "cliente_nombre" in serializer.errors
 
 
 class TestComprobanteWriteSerializerBoleta:
-    def test_dni_valido_pasa(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "boleta", "12345678"))
+    def test_dni_valido_pasa(self, pago_completado):
+        serializer = ComprobanteWriteSerializer(data=_payload(pago_completado, "boleta", "12345678"))
         assert serializer.is_valid(), serializer.errors
 
-    def test_sin_dni_pasa(self):
+    def test_sin_dni_pasa(self, pago_completado):
         """En boleta el DNI es opcional (consumidor final anónimo)."""
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "boleta", ""))
+        serializer = ComprobanteWriteSerializer(data=_payload(pago_completado, "boleta", ""))
         assert serializer.is_valid(), serializer.errors
 
-    def test_dni_con_letras_falla(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "boleta", "1234567A"))
-        assert not serializer.is_valid()
-        assert "cliente_ruc_dni" in serializer.errors
-
-    def test_dni_con_menos_digitos_falla(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "boleta", "1234567"))
-        assert not serializer.is_valid()
-        assert "cliente_ruc_dni" in serializer.errors
-
-    def test_dni_con_mas_digitos_falla(self):
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "boleta", "123456789"))
-        assert not serializer.is_valid()
-        assert "cliente_ruc_dni" in serializer.errors
-
-    def test_ruc_de_11_digitos_en_una_boleta_falla(self):
-        """Tipo de comprobante equivocado: una boleta exige DNI (8), no RUC (11)."""
-        pago = _crear_pago_completado()
-        serializer = ComprobanteWriteSerializer(data=_payload(pago, "boleta", "12345678901"))
+    @pytest.mark.parametrize("dni_invalido", [
+        pytest.param("1234567A", id="con-letras"),
+        pytest.param("1234567", id="7-digitos-de-menos"),
+        pytest.param("123456789", id="9-digitos-de-mas"),
+        pytest.param("12345678901", id="ruc-de-11-digitos-tipo-equivocado"),
+    ])
+    def test_dni_invalido_falla(self, pago_completado, dni_invalido):
+        serializer = ComprobanteWriteSerializer(data=_payload(pago_completado, "boleta", dni_invalido))
         assert not serializer.is_valid()
         assert "cliente_ruc_dni" in serializer.errors
