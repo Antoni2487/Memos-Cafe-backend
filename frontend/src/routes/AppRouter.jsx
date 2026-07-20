@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PrivateRoute from "./PrivateRoute";
 import { ROLES } from "../utils/constants";
-import Layout from "../components/layout/Layout"; // ← agrega esto
+import Layout from "../components/layout/layout";
 
 // Pages
 import LoginPage from "../pages/auth/LoginPage";
