@@ -85,7 +85,7 @@ export default function ProductosPage() {
       ),
     },
     {
-      label: "Categor\u00eda",
+      label: "Categoría",
       width: "140px",
       render: (p) => (
         <span style={{ fontFamily: "'Lato', sans-serif", fontSize: 12.5, color: "#555" }}>
@@ -148,8 +148,8 @@ export default function ProductosPage() {
   return (
     <>
       <PageHeader
-        titulo="Gesti\u00f3n de Productos"
-        descripcion="Administra la carta de productos del caf\u00e9"
+        titulo="Gestión de Productos"
+        descripcion="Administra la carta de productos del café"
         accion={
           <button onClick={() => { setProductoEditar(null); setShowForm(true); }}
             style={{ backgroundColor: "#2C5545", color: "white", border: "none",

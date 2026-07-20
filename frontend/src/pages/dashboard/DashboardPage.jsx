@@ -381,53 +381,48 @@ export default function DashboardPage() {
     color: METODO_COLORES[m.metodo_pago] ?? "#aaa",
   }));
 
-  const hoy = new Date().toLocaleDateString("es-PE", {
-    weekday: "long", day: "numeric", month: "long",
-  });
-
   return (
     <>
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+  <style>{`
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  `}</style>
+  <div className="flex flex-col gap-5">
 
-      <div className="flex flex-col gap-5">
+    <h2 style={{
+    fontFamily: "'Playfair Display', serif",
+    fontSize: "1.5rem",
+    fontWeight: 600,
+    color: "#2C5545",
+    margin: 0,
+  }}>
+    Dashboard
+  </h2>
 
-        <div className="flex items-center justify-between">
-          <p
-            style={{
-              fontFamily: "'Lato', sans-serif",
-              fontSize: 13,
-              color: "rgba(44,85,69,0.55)",
-              margin: 0,
-              textTransform: "capitalize",
-            }}
-          >
-            {hoy}
-          </p>
-          <button
-            onClick={() => cargar(true)}
-            disabled={recargando}
-            className="flex items-center gap-2"
-            style={{
-              backgroundColor: VERDE_CLARO,
-              border: "none", borderRadius: 8,
-              padding: "7px 14px", cursor: recargando ? "not-allowed" : "pointer",
-              fontFamily: "'Lato', sans-serif", fontSize: 12,
-              color: VERDE, fontWeight: 600,
-            }}
-          >
-            <RefreshCw
-              size={13}
-              strokeWidth={2}
-              style={{ animation: recargando ? "spin 1s linear infinite" : "none" }}
-            />
-            Actualizar
-          </button>
-        </div>
+    {/* Botón actualizar — sin fecha, ya está en el navbar */}
+    <div className="flex justify-end">
+      <button
+        onClick={() => cargar(true)}
+        disabled={recargando}
+        className="flex items-center gap-2"
+        style={{
+          backgroundColor: VERDE_CLARO,
+          border: "none", borderRadius: 8,
+          padding: "7px 14px", cursor: recargando ? "not-allowed" : "pointer",
+          fontFamily: "'Lato', sans-serif", fontSize: 12,
+          color: VERDE, fontWeight: 600,
+        }}
+      >
+        <RefreshCw
+          size={13}
+          strokeWidth={2}
+          style={{ animation: recargando ? "spin 1s linear infinite" : "none" }}
+        />
+        Actualizar
+      </button>
+    </div>
 
         {/* Fila 1: KPIs */}
         <div className="grid grid-cols-2 gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
@@ -466,7 +461,7 @@ export default function DashboardPage() {
             delay={120}
           />
           <KPICard
-            titulo="Órdenes cerradas"
+            titulo="Órdenes cobradas"
             valor={data?.ordenes?.cerradas_hoy ?? 0}
             subtitulo={`${data?.ordenes?.anuladas_hoy ?? 0} anuladas hoy`}
             icono={Receipt}

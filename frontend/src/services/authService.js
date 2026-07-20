@@ -54,6 +54,17 @@ const authService = {
   },
 
   logout: () => {
+    // Best-effort: invalida el refresh token en el backend antes de limpiar
+    // el estado local. Sin esto, un token robado seguía siendo valido hasta
+    // su expiracion natural aunque el usuario "cerrara sesion" (ver
+    // rest_framework_simplejwt.token_blacklist en INSTALLED_APPS). No se
+    // espera la respuesta: si falla (backend caido, token ya vencido) el
+    // logout local sigue igual, no debe bloquear al usuario.
+    const refresh = localStorage.getItem("refresh_token");
+    if (refresh) {
+      api.post("/auth/logout/", { refresh }).catch(() => {});
+    }
+
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user_roles");

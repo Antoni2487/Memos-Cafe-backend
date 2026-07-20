@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./sidebar";
-import Navbar from "./Navbar";
+import Navbar from "./navbar";
 import useApiErrors from "../../hooks/useApiErrors";
 
 export default function Layout() {
