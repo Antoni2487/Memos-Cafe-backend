@@ -42,7 +42,7 @@ class ProductoSerializer(serializers.ModelSerializer):
 class ProductoWriteSerializer(serializers.Serializer):
     """Escritura — valida datos para crear un producto."""
     nombre = serializers.CharField(max_length=100)
-    descripcion = serializers.CharField(required=False, allow_blank=True, default="")
+    descripcion = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
     precio = serializers.DecimalField(max_digits=10, decimal_places=2)
     categoria = serializers.PrimaryKeyRelatedField(
         queryset=Categoria.objects.filter(activo=True)
@@ -63,7 +63,7 @@ class ProductoWriteSerializer(serializers.Serializer):
 class ProductoEditarSerializer(serializers.Serializer):
     """Escritura parcial — para editar un producto existente."""
     nombre = serializers.CharField(max_length=100, required=False)
-    descripcion = serializers.CharField(required=False, allow_blank=True)
+    descripcion = serializers.CharField(max_length=500, required=False, allow_blank=True)
     precio = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     categoria = serializers.PrimaryKeyRelatedField(
         queryset=Categoria.objects.filter(activo=True), required=False
@@ -104,7 +104,7 @@ class PromocionSerializer(serializers.ModelSerializer):
 class PromocionWriteSerializer(serializers.Serializer):
     """Escritura — valida datos para crear una promoción."""
     nombre = serializers.CharField(max_length=100)
-    descripcion = serializers.CharField(required=False, allow_blank=True, default="")
+    descripcion = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
     imagen = serializers.ImageField(required=False, allow_null=True)
     precio = serializers.DecimalField(max_digits=10, decimal_places=2)
     fecha_inicio = serializers.DateField()
@@ -131,7 +131,7 @@ class PromocionWriteSerializer(serializers.Serializer):
 class PromocionEditarSerializer(serializers.Serializer):
     """Escritura parcial — para editar una promoción existente."""
     nombre = serializers.CharField(max_length=100, required=False)
-    descripcion = serializers.CharField(required=False, allow_blank=True)
+    descripcion = serializers.CharField(max_length=500, required=False, allow_blank=True)
     imagen = serializers.ImageField(required=False, allow_null=True)
     precio = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
     fecha_inicio = serializers.DateField(required=False)

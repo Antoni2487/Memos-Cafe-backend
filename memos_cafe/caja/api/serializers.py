@@ -3,6 +3,7 @@ from rest_framework import serializers
 from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, NotaCredito, Pago
 from memos_cafe.ordenes.api.serializers import OrdenReadSerializer
 from memos_cafe.ordenes.models import Orden  # fix 3: import directo, sin __import__
+from memos_cafe.utils.validators import es_dni_valido, es_ruc_valido
 
 
 class AbrirCajaSerializer(serializers.Serializer):
@@ -18,7 +19,7 @@ class AbrirCajaSerializer(serializers.Serializer):
 class CerrarCajaSerializer(serializers.Serializer):
     """Valida los datos para cerrar una sesión de caja."""
     monto_final = serializers.DecimalField(max_digits=10, decimal_places=2)
-    observaciones = serializers.CharField(required=False, allow_blank=True, default="")
+    observaciones = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
     def validate_monto_final(self, value):
         if value < 0:
@@ -195,6 +196,26 @@ class ComprobanteWriteSerializer(serializers.Serializer):
     cliente_nombre = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
     cliente_ruc_dni = serializers.CharField(max_length=11, required=False, allow_blank=True, default="")
     cliente_direccion = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+
+    def validate(self, data):
+        tipo = data.get("tipo")
+        ruc_dni = data.get("cliente_ruc_dni", "").strip()
+
+        if tipo == Comprobante.TipoComprobante.FACTURA:
+            if not data.get("cliente_nombre", "").strip():
+                raise serializers.ValidationError(
+                    {"cliente_nombre": "Para emitir una factura se requiere el nombre del cliente."}
+                )
+            if not es_ruc_valido(ruc_dni):
+                raise serializers.ValidationError(
+                    {"cliente_ruc_dni": "El RUC debe tener exactamente 11 dígitos numéricos."}
+                )
+        elif tipo == Comprobante.TipoComprobante.BOLETA:
+            if ruc_dni and not es_dni_valido(ruc_dni):
+                raise serializers.ValidationError(
+                    {"cliente_ruc_dni": "El DNI debe tener exactamente 8 dígitos numéricos."}
+                )
+        return data
 
 
 class ComprobanteReadSerializer(serializers.ModelSerializer):

@@ -5,6 +5,7 @@ from django.db.models import Sum
 
 from memos_cafe.caja.models import Caja, Comprobante, MovimientoCaja, NotaCredito, Pago
 from memos_cafe.ordenes.models import Orden
+from memos_cafe.utils.validators import es_dni_valido, es_ruc_valido
 
 UMBRAL_DIFERENCIA_SIN_OBSERVACION = Decimal("5.00")
 
@@ -182,6 +183,11 @@ class ComprobanteService:
         if tipo == Comprobante.TipoComprobante.FACTURA:
             if not cliente_nombre or not cliente_ruc_dni:
                 raise ValueError("Para emitir una factura se requiere nombre y RUC del cliente.")
+            if not es_ruc_valido(cliente_ruc_dni):
+                raise ValueError("El RUC debe tener exactamente 11 dígitos numéricos.")
+        elif tipo == Comprobante.TipoComprobante.BOLETA:
+            if cliente_ruc_dni and not es_dni_valido(cliente_ruc_dni):
+                raise ValueError("El DNI debe tener exactamente 8 dígitos numéricos.")
 
         return Comprobante.objects.create(
             pago=pago,
