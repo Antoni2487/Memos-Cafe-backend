@@ -290,7 +290,11 @@ export default function OrdenesPage() {
         ]);
         setOrdenes(resO.data.results   ?? resO.data);
         setMesas(resM.data.results     ?? resM.data);
-        setProductos(resP.data.results ?? resP.data);
+        // /api/productos/ devuelve TODOS los productos para admin (incluidos los
+        // no disponibles, para que los pueda gestionar). El catálogo de la orden
+        // solo debe ofrecer los disponibles: el backend rechaza con 400 un
+        // producto no disponible al crear la orden.
+        setProductos((resP.data.results ?? resP.data).filter((p) => p.disponible));
         setPromociones(resPr.data.results ?? resPr.data);
       } catch (e) {
         setError("Error al cargar datos");
