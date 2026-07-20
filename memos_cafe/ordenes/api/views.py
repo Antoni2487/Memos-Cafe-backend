@@ -11,7 +11,7 @@ from memos_cafe.ordenes.api.serializers import (
     OrdenReadSerializer,
     OrdenWriteSerializer,
 )
-from memos_cafe.utils.permissions import EsAdmin, EsAdminOMesero, TodosAutenticados
+from memos_cafe.utils.permissions import EsAdmin, EsAdminOMesero, TodosAutenticados, modulo_requerido
 
 
 class OrdenViewSet(
@@ -55,10 +55,10 @@ class OrdenViewSet(
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
-            return [TodosAutenticados()]
-        if self.action in ["crear", "agregar_detalle", "eliminar_detalle"]:
-            return [EsAdminOMesero()]
-        return [EsAdmin()]
+            return [TodosAutenticados(), modulo_requerido("ordenes")()]
+        if self.action in ["crear", "agregar_detalle", "eliminar_detalle", "marcar_impreso"]:
+            return [EsAdminOMesero(), modulo_requerido("ordenes")()]
+        return [EsAdmin(), modulo_requerido("ordenes")()]
 
     def get_serializer_class(self):
         return OrdenReadSerializer

@@ -17,7 +17,7 @@ from memos_cafe.caja.api.serializers import (
     PagoReadSerializer,
     PagoWriteSerializer,
 )
-from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero
+from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero, modulo_requerido
 
 
 class CajaViewSet(GenericViewSet):
@@ -25,7 +25,7 @@ class CajaViewSet(GenericViewSet):
     Gestión de sesiones de caja.
     El ViewSet solo maneja HTTP — delega toda la lógica a CajaService.
     """
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("caja")]
     queryset = Caja.objects.all()
 
     @action(detail=False, methods=["get"], url_path="estado")
@@ -74,7 +74,7 @@ class MovimientoCajaViewSet(
     GenericViewSet,
 ):
     """Movimientos de efectivo dentro de una sesión de caja."""
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("caja")]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -113,7 +113,7 @@ class PagoViewSet(
     Gestión de pagos.
     El create va en un action separado para mayor control.
     """
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("caja")]
 
     def get_queryset(self):
         return (
@@ -167,7 +167,7 @@ class ComprobanteViewSet(
     GenericViewSet,
 ):
     """Emisión y consulta de comprobantes."""
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("caja")]
     queryset = Comprobante.objects.select_related("pago").all()
 
     def get_serializer_class(self):

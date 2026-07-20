@@ -22,7 +22,7 @@ from memos_cafe.caja.models import MovimientoCaja, Pago
 from memos_cafe.mesas.models import Mesa
 from memos_cafe.ordenes.models import DetalleOrden
 from memos_cafe.ordenes.models import Orden
-from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero
+from memos_cafe.utils.permissions import EsAdmin, EsAdminOCajero, modulo_requerido
 
 
 class DashboardView(APIView):
@@ -526,7 +526,7 @@ class ReporteProductosView(APIView):
 
 class ReporteCajaView(APIView):
     """GET /api/reportes/caja/"""
-    permission_classes = [EsAdminOCajero]
+    permission_classes = [EsAdminOCajero, modulo_requerido("reportes")]
 
     def get(self, request):
         fecha_inicio = request.query_params.get("fecha_inicio")

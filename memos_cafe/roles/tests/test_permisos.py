@@ -52,11 +52,15 @@ def cajero_client(api_client, cajero_user):
 
 @pytest.fixture
 def permiso(db):
-    return PermisoRol.objects.create(
+    # update_or_create: la migracion 0002_seed_permisos ya siembra las 24
+    # combinaciones modulo x rol, asi que un .create() aca chocaria con
+    # unique_together.
+    permiso, _ = PermisoRol.objects.update_or_create(
         modulo="productos",
         rol="cajero",
-        puede_acceder=False,
+        defaults={"puede_acceder": False},
     )
+    return permiso
 
 
 # ── GET /api/roles/permisos/ ─────────────────────────────────────
@@ -69,9 +73,12 @@ class TestPermisoRolList:
         assert response.status_code == status.HTTP_200_OK
 
     @pytest.mark.django_db
-    def test_cajero_no_puede_listar_permisos(self, cajero_client):
+    def test_cajero_puede_listar_permisos(self, cajero_client):
+        """Cualquier autenticado necesita leer la tabla completa para poder
+        calcular sus propios permisos en el frontend (Sidebar/rutas).
+        Solo la edicion (PATCH) sigue siendo exclusiva de admin."""
         response = cajero_client.get("/api/roles/permisos/")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_200_OK
 
     @pytest.mark.django_db
     def test_anonimo_no_puede_listar_permisos(self, api_client):
@@ -81,7 +88,9 @@ class TestPermisoRolList:
     @pytest.mark.django_db
     def test_respuesta_tiene_campos_correctos(self, admin_client, permiso):
         response = admin_client.get("/api/roles/permisos/")
-        data = response.data.get("results") or response.data
+        # Sin paginacion (pagination_class = None): la respuesta es una
+        # lista plana, no un dict con "results".
+        data = response.data
         assert len(data) > 0
         item = data[0]
         assert "id" in item
@@ -90,6 +99,14 @@ class TestPermisoRolList:
         assert "rol" in item
         assert "rol_label" in item
         assert "puede_acceder" in item
+
+    @pytest.mark.django_db
+    def test_lista_no_esta_paginada_devuelve_todas_las_filas(self, admin_client, permiso):
+        """Regresion: con paginacion default (20/pagina) esta tabla de 24
+        filas perdia 'usuarios' y parte de 'reportes' en silencio."""
+        response = admin_client.get("/api/roles/permisos/")
+        assert isinstance(response.data, list)
+        assert len(response.data) >= 24
 
 
 # ── PATCH /api/roles/permisos/{id}/ ─────────────────────────────
@@ -162,8 +179,8 @@ class TestPermisoRolUpdate:
 class TestPermisoRolModel:
     @pytest.mark.django_db
     def test_str_activo(self, db):
-        p = PermisoRol.objects.create(
-            modulo="caja", rol="admin", puede_acceder=True
+        p, _ = PermisoRol.objects.update_or_create(
+            modulo="caja", rol="admin", defaults={"puede_acceder": True}
         )
         assert "admin" in str(p)
         assert "caja" in str(p)
@@ -171,13 +188,14 @@ class TestPermisoRolModel:
 
     @pytest.mark.django_db
     def test_str_inactivo(self, db):
-        p = PermisoRol.objects.create(
-            modulo="reportes", rol="mesero", puede_acceder=False
+        p, _ = PermisoRol.objects.update_or_create(
+            modulo="reportes", rol="mesero", defaults={"puede_acceder": False}
         )
         assert "❌" in str(p)
 
     @pytest.mark.django_db
     def test_unique_together(self, db):
+        PermisoRol.objects.filter(modulo="mesas", rol="cajero").delete()
         PermisoRol.objects.create(
             modulo="mesas", rol="cajero", puede_acceder=True
         )
