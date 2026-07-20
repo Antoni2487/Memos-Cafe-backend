@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import dashboardService from "../../services/dashboardService";
 import { LoadingSpinner, EmptyState } from "../../components/common";
+import { useIsMobile } from "../../hooks/useMediaQuery";
 
 // --- Paleta de colores del proyecto ---
 const VERDE         = "#2C5545";
@@ -326,6 +327,7 @@ function CajaWidget({ caja }) {
 
 // --- Pagina principal ---
 export default function DashboardPage() {
+  const isMobile = useIsMobile();
   const [data, setData]       = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError]     = useState(null);
@@ -470,7 +472,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Fila 2: Grafico ventas + Metodos de pago */}
-        <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 340px" }}>
+        <div className="grid gap-4" style={{ gridTemplateColumns: isMobile ? "1fr" : "1fr 340px" }}>
 
           <Card titulo="Ventas de los últimos días">
             {ventasPorDia.length === 0 ? (
@@ -573,7 +575,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Fila 3: Top productos + Mesas + Caja activa */}
-        <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 260px 260px" }}>
+        <div className="grid gap-4" style={{ gridTemplateColumns: isMobile ? "1fr" : "1fr 260px 260px" }}>
 
           <Card titulo="Top productos hoy">
             {(data?.top_productos ?? []).length === 0 ? (

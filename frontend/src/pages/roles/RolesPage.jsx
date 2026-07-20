@@ -62,12 +62,14 @@ export default function RolesPage() {
           backgroundColor: "white",
           borderRadius: "12px",
           border: "1px solid rgba(44,85,69,0.12)",
-          overflow: "hidden",
+          overflowX: "auto",
         }}>
-          {/* Header tabla */}
+          {/* Header tabla — minWidth evita que las columnas se aplasten en mobile; el
+              contenedor scrollea horizontal en vez de romper el layout */}
           <div style={{
             display: "grid",
             gridTemplateColumns: "1fr repeat(3, 120px)",
+            minWidth: 520,
             backgroundColor: "rgba(44,85,69,0.04)",
             borderBottom: "1px solid rgba(44,85,69,0.12)",
             padding: "12px 20px",
@@ -98,6 +100,7 @@ export default function RolesPage() {
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr repeat(3, 120px)",
+                minWidth: 520,
                 padding: "14px 20px",
                 alignItems: "center",
                 borderBottom: idx < filas.length - 1 ? "1px solid rgba(44,85,69,0.08)" : "none",
