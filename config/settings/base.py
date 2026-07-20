@@ -313,11 +313,14 @@ SIMPLE_JWT = {
 # -------------------------------------------------------------------------------
 CORS_URLS_REGEX = r"^/api/.*$"
 # ⚠️ CORRECCIÓN: agregados los puertos de Vite (5173) para desarrollo local
+# El dominio real del frontend desplegado se agrega via DJANGO_CORS_ALLOWED_ORIGINS
+# (env var, coma-separada) sin tocar codigo — ver .envs/.production/.django.
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    *env.list("DJANGO_CORS_ALLOWED_ORIGINS", default=[]),
 ]
 
 # drf-spectacular
