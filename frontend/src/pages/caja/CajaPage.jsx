@@ -234,7 +234,11 @@ function OrdenCard({ orden, onCobrar }) {
 
 // ── Modal de cobro ────────────────────────────────────────────────────────────
 function ModalCobrar({ orden, onCerrar, onPagado }) {
-    const pagadoPrevio = (orden.pagos ?? [])
+    // La API expone "pagos_resumen" (ver OrdenReadSerializer), nunca "pagos"
+    // -- con el campo equivocado esto siempre daba 0, así que en un pago
+    // parcial el modal mostraba el total completo como pendiente en vez
+    // del saldo real, dejando pasar montos que el backend rechazaba.
+    const pagadoPrevio = (orden.pagos_resumen ?? [])
         .filter(p => p.estado === "completado")
         .reduce((s, p) => s + Number(p.monto), 0);
     const pendiente = Number(orden.total) - pagadoPrevio;
